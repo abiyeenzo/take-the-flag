@@ -23,7 +23,7 @@ A colorful laser tag capture the flag game for everyone. Two teams, one glowing 
 
 Controls: click or tap to shoot, Q for your ability, C for classes, B for the shop, G for settings.
 
-Follow the creator on YouTube: Black-N-Zo
+Follow the creator on YouTube: abiye_enzo
 
 ## Settings to check
 
