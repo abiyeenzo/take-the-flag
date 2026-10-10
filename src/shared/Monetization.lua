@@ -5,7 +5,7 @@ local Monetization = {}
 
 Monetization.GamePasses = {
 	VIP = {
-		Id = 0,
+		Id = 2026040351,
 		Name = "VIP",
 		Robux = 299,
 		Description = "Double coins, 25% more XP, the Golden Blaster and the Aurora trail.",
