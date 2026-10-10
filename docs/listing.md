@@ -45,3 +45,7 @@ Follow the creator on YouTube: Black-N-Zo
 - Computer players: bots with made-up names fill matches; they never earn rewards or buy anything
 
 Expected result: suitable for all ages. Confirm the final rating in the Creator Hub questionnaire.
+
+## Short description (ready to paste)
+
+The current text is kept in docs/description.txt, sent by tools/update-listing.sh when the API key allows it.
