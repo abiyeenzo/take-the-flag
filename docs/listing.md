@@ -23,7 +23,6 @@ A colorful laser tag capture the flag game for everyone. Two teams, one glowing 
 
 Controls: click or tap to shoot, Q for your ability, C for classes, B for the shop, G for settings.
 
-Follow the creator on YouTube: abiye_enzo
 
 ## Settings to check
 
@@ -59,3 +58,7 @@ The current text is kept in docs/description.txt, sent by tools/update-listing.s
 - Exclude from recommendations: leave off
 - Enable Studio access to API Services: ON (needed to save player progress)
 - Meshes / images API: leave off
+
+## If the name or description is rejected
+
+Roblox does not say which one. Common causes: a social media account name in the description (use the Social Links section of the experience page for the YouTube channel instead), words the filter dislikes, or the name and description submitted together. Save the name alone first, then the description, to see which one is refused.
