@@ -2,6 +2,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
 local Classes = require(ReplicatedStorage.Shared.Classes)
@@ -175,7 +176,7 @@ local function buildProfileBar(gui: ScreenGui)
 		Parent = bar,
 	})
 
-	Store.Changed.Event:Connect(function(profile)
+	local function render(profile)
 		level.Text = tostring(profile.Level)
 		fill:TweenSize(
 			UDim2.fromScale(math.clamp(profile.XP / profile.XpNeeded, 0, 1), 1),
@@ -186,7 +187,11 @@ local function buildProfileBar(gui: ScreenGui)
 		)
 		xp.Text = ("%d / %d XP"):format(profile.XP, profile.XpNeeded)
 		coins.Text = ("%d coins"):format(profile.Coins)
-	end)
+	end
+	Store.Changed.Event:Connect(render)
+	if Store.Profile then
+		render(Store.Profile)
+	end
 end
 
 local function buildFeeds(gui: ScreenGui)
@@ -311,7 +316,8 @@ local function buildAbilityButton(gui: ScreenGui)
 	end)
 
 	return function()
-		local def = Classes.Defs[player:GetAttribute("Class")]
+		local character = player.Character
+		local def = Classes.Defs[character and character:GetAttribute("Class") or player:GetAttribute("Class")]
 		name.Text = def and string.upper(def.Ability) or ""
 		local remaining = (player:GetAttribute("AbilityReadyAt") or 0) - Workspace:GetServerTimeNow()
 		cooldown.Visible = remaining > 0
@@ -492,6 +498,18 @@ function Hud.Init()
 	buildHitMarker(gui)
 	buildEndScreen(gui)
 	showHint(gui)
+
+	if UserInputService.TouchEnabled and not UserInputService.MouseEnabled then
+		New("Frame", {
+			Name = "Crosshair",
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.5),
+			Size = UDim2.fromOffset(8, 8),
+			BackgroundColor3 = Color3.new(1, 1, 1),
+			BackgroundTransparency = 0.2,
+			Parent = gui,
+		}, { New("UICorner", { CornerRadius = UDim.new(1, 0) }) })
+	end
 
 	RunService.Heartbeat:Connect(function()
 		local state = Workspace:GetAttribute("RoundState") or "Waiting"

@@ -1,5 +1,6 @@
 local DataStoreService = game:GetService("DataStoreService")
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
@@ -21,7 +22,8 @@ local DEFAULTS = {
 }
 
 local store = DataStoreService:GetDataStore(Config.DataStoreName)
-local profiles: { [Player]: { Data: any, CanSave: boolean } } = {}
+local profiles: { [Player]: { Data: any, CanSave: boolean, Saving: boolean? } } = {}
+local pendingSaves = 0
 
 local function keyFor(player: Player): string
 	return "u_" .. player.UserId
@@ -86,16 +88,29 @@ local function makeLeaderstats(player: Player)
 	folder.Parent = player
 end
 
-local function save(player: Player)
+local function save(player: Player, final: boolean?)
 	local profile = profiles[player]
 	if not profile or not profile.CanSave then
 		return
 	end
+	if profile.Saving then
+		if not final then
+			return
+		end
+		-- an autosave is in flight: let it finish, then write the latest data
+		while profile.Saving do
+			task.wait()
+		end
+	end
+	profile.Saving = true
+	pendingSaves += 1
 	local ok, err = pcall(function()
 		store:UpdateAsync(keyFor(player), function()
 			return profile.Data
 		end)
 	end)
+	profile.Saving = false
+	pendingSaves -= 1
 	if not ok then
 		warn("[TakeTheFlag] save failed for " .. player.Name .. ": " .. tostring(err))
 	end
@@ -130,6 +145,9 @@ local function load(player: Player)
 	player:SetAttribute("Class", data.Class)
 	updateLeaderstats(player, data)
 	DataService.Push(player)
+	if not canSave and not RunService:IsStudio() then
+		Remotes.Toast:FireClient(player, "Data service unavailable: progress will not be saved this session", "bad")
+	end
 end
 
 function DataService.Get(player: Player): any?
@@ -192,15 +210,19 @@ function DataService.Init()
 	end
 
 	Players.PlayerRemoving:Connect(function(player)
-		save(player)
+		save(player, true)
 		profiles[player] = nil
 	end)
 
 	game:BindToClose(function()
 		for _, player in ipairs(Players:GetPlayers()) do
-			task.spawn(save, player)
+			task.spawn(save, player, true)
 		end
-		task.wait(3)
+		local waited = 0
+		while pendingSaves > 0 and waited < 25 do
+			task.wait(0.25)
+			waited += 0.25
+		end
 	end)
 
 	task.spawn(function()

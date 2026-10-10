@@ -50,7 +50,7 @@ local function hookTool(tool: Tool)
 		task.spawn(function()
 			while holding and tool.Parent == player.Character do
 				Remotes.Fire:FireServer(aimPoint())
-				local def = Classes.Defs[player:GetAttribute("Class")] or Classes.Defs[Classes.Default]
+				local def = Classes.Defs[player.Character and player.Character:GetAttribute("Class") or player:GetAttribute("Class")] or Classes.Defs[Classes.Default]
 				local overcharged = (player.Character and player.Character:GetAttribute("OverchargeUntil") or 0)
 					> Workspace:GetServerTimeNow()
 				task.wait(def.FireDelay * (overcharged and 0.67 or 1))

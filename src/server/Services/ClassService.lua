@@ -55,6 +55,7 @@ local function applyClass(player: Player, character: Model)
 	humanoid.Health = def.Health
 	humanoid.WalkSpeed = def.Speed
 
+	character:SetAttribute("Class", def.Id)
 	player:SetAttribute("AbilityReadyAt", 0)
 
 	local forceField = Instance.new("ForceField")
@@ -95,7 +96,7 @@ local function useAbility(player: Player)
 		return
 	end
 
-	local def = Classes.Defs[player:GetAttribute("Class")]
+	local def = Classes.Defs[character:GetAttribute("Class") or player:GetAttribute("Class")]
 	local now = Workspace:GetServerTimeNow()
 	if not def or now < (player:GetAttribute("AbilityReadyAt") or 0) then
 		return

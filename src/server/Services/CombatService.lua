@@ -13,7 +13,11 @@ CombatService.Killed = Instance.new("BindableEvent") -- (killer, victim)
 local lastShot: { [Player]: number } = {}
 
 local function onFire(player: Player, aimPoint: any)
-	if typeof(aimPoint) ~= "Vector3" or aimPoint ~= aimPoint then
+	if typeof(aimPoint) ~= "Vector3" then
+		return
+	end
+	local magnitude = aimPoint.Magnitude
+	if magnitude ~= magnitude or magnitude > 1e5 then
 		return
 	end
 	if Workspace:GetAttribute("RoundState") ~= "Playing" then
@@ -31,7 +35,7 @@ local function onFire(player: Player, aimPoint: any)
 		return
 	end
 
-	local def = Classes.Defs[player:GetAttribute("Class")] or Classes.Defs[Classes.Default]
+	local def = Classes.Defs[character:GetAttribute("Class")] or Classes.Defs[Classes.Default]
 	local now = Workspace:GetServerTimeNow()
 	local overcharged = (character:GetAttribute("OverchargeUntil") or 0) > now
 
@@ -51,8 +55,22 @@ local function onFire(player: Player, aimPoint: any)
 
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
-	params.FilterDescendantsInstances = { character }
-	local result = Workspace:Raycast(origin, direction, params)
+	local exclude = { character }
+	local result
+	for _ = 1, 4 do
+		params.FilterDescendantsInstances = exclude
+		result = Workspace:Raycast(origin, direction, params)
+		if not result then
+			break
+		end
+		local hitModel = result.Instance:FindFirstAncestorOfClass("Model")
+		local hitHumanoid = hitModel and hitModel:FindFirstChildOfClass("Humanoid")
+		if hitModel and hitHumanoid and hitHumanoid.Health <= 0 then
+			table.insert(exclude, hitModel)
+		else
+			break
+		end
+	end
 	local endpoint = result and result.Position or origin + direction
 
 	local teamColor = player.Team and Config.TeamColor(player.Team.Name) or Color3.new(1, 1, 1)
@@ -91,7 +109,7 @@ local function watchCharacter(player: Player, character: Model)
 		local damageTime = humanoid:GetAttribute("LastDamageTime")
 		if damagerId and damageTime and os.clock() - damageTime <= Config.KillAssistWindow then
 			local killer = Players:GetPlayerByUserId(damagerId)
-			if killer and killer ~= player then
+			if killer and killer ~= player and killer.Team ~= player.Team then
 				CombatService.Killed:Fire(killer, player)
 				return
 			end

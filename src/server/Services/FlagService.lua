@@ -31,6 +31,7 @@ type Flag = {
 local flags: { [string]: Flag } = {}
 local carrying: { [Player]: Flag } = {}
 local lastWarning: { [Player]: number } = {}
+local triggers: { [string]: Part } = {}
 
 local function teamOf(player: Player): string?
 	return player.Team and player.Team.Name or nil
@@ -216,7 +217,7 @@ local function pickup(flag: Flag, player: Player)
 end
 
 local function onFlagTouched(flag: Flag, hit: BasePart)
-	if not FlagService.Active or flag.State == "Carried" then
+	if not hit.Parent or not FlagService.Active or flag.State == "Carried" then
 		return
 	end
 	local player = Players:GetPlayerFromCharacter(hit.Parent)
@@ -238,7 +239,7 @@ local function onFlagTouched(flag: Flag, hit: BasePart)
 end
 
 local function onPadTouched(padTeam: string, hit: BasePart)
-	if not FlagService.Active then
+	if not hit.Parent or not FlagService.Active then
 		return
 	end
 	local player = Players:GetPlayerFromCharacter(hit.Parent)
@@ -303,9 +304,45 @@ function FlagService.Init(mapInfo: any)
 		banner.Touched:Connect(function(hit)
 			onFlagTouched(flag, hit)
 		end)
+		triggers[def.Name] = info.Trigger
 		info.Trigger.Touched:Connect(function(hit)
 			onPadTouched(def.Name, hit)
 		end)
+	end
+
+	-- Touched alone misses players who stand still while a flag comes home or drops
+	-- under them, so also poll the overlaps a few times per second.
+	task.spawn(function()
+		while true do
+			task.wait(0.2)
+			if FlagService.Active then
+				for teamName, trigger in pairs(triggers) do
+					for _, part in ipairs(Workspace:GetPartsInPart(trigger)) do
+						onPadTouched(teamName, part)
+					end
+				end
+				for _, flag in pairs(flags) do
+					if flag.State ~= "Carried" then
+						for _, part in ipairs(Workspace:GetPartBoundsInRadius(flag.Pole.Position, 5)) do
+							onFlagTouched(flag, part)
+						end
+					end
+				end
+			end
+		end
+	end)
+
+	local function hook(player: Player)
+		player.CharacterRemoving:Connect(function()
+			local flag = carrying[player]
+			if flag then
+				drop(flag)
+			end
+		end)
+	end
+	Players.PlayerAdded:Connect(hook)
+	for _, player in ipairs(Players:GetPlayers()) do
+		hook(player)
 	end
 
 	Players.PlayerRemoving:Connect(function(player)

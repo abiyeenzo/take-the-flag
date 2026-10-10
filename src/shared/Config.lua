@@ -14,7 +14,7 @@ local Config = {
 	SpawnProtection = 3,
 	ShotRange = 400,
 	HeadshotMultiplier = 1.5,
-	KillAssistWindow = 10,
+	KillAssistWindow = 5,
 
 	MaxLevel = 50,
 	AutosaveInterval = 120,

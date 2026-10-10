@@ -18,6 +18,7 @@ local stats: { [number]: Stats } = {}
 local streaks: { [Player]: number } = {}
 local winner: string? = nil
 local overtime = false
+local participants: { [number]: boolean } = {}
 
 local function setState(state: string, duration: number?)
 	Workspace:SetAttribute("RoundState", state)
@@ -145,6 +146,12 @@ local function playRound()
 	resetScores()
 	TeamService.Rebalance()
 	FlagService.Reset()
+	participants = {}
+	local participantCount = 0
+	for _, player in ipairs(Players:GetPlayers()) do
+		participants[player.UserId] = true
+		participantCount += 1
+	end
 	for _, player in ipairs(Players:GetPlayers()) do
 		task.spawn(function()
 			player:LoadCharacter()
@@ -188,7 +195,8 @@ local function playRound()
 	end
 
 	for _, player in ipairs(Players:GetPlayers()) do
-		if stats[player.UserId] or player.Team then
+		-- late joiners and solo matches do not earn the match bonuses
+		if participantCount >= 2 and (participants[player.UserId] or stats[player.UserId]) then
 			reward(player, "Play", "Match played")
 			if player.Team and player.Team.Name == result then
 				DataService.Increment(player, "Wins", 1)

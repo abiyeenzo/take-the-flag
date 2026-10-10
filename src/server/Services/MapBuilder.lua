@@ -296,6 +296,9 @@ local function buildJumpPads(arena: Folder)
 			CanQuery = false,
 		}, folder)
 		sensor.Touched:Connect(function(hit)
+			if not hit.Parent then
+				return
+			end
 			local player = Players:GetPlayerFromCharacter(hit.Parent)
 			if not player then
 				return
