@@ -49,3 +49,13 @@ Expected result: suitable for all ages. Confirm the final rating in the Creator 
 ## Short description (ready to paste)
 
 The current text is kept in docs/description.txt, sent by tools/update-listing.sh when the API key allows it.
+
+## Creator Hub form (Configure Experience > Basic Settings)
+
+- Name: Capture The Flag: Neon Arena (28 characters, the limit is 50)
+- Description: paste docs/description.txt (765 characters, the limit is 1000)
+- Genre: Shooter, sub-genre Team Shooter if offered
+- Audience: Public once the content maturity questionnaire is completed (Limited means 16+ only)
+- Exclude from recommendations: leave off
+- Enable Studio access to API Services: ON (needed to save player progress)
+- Meshes / images API: leave off
