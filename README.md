@@ -88,4 +88,4 @@ Use `VERSION_TYPE=Saved` to upload a version without making it live.
 
 ## License
 
-MIT, see `LICENSE`.
+All rights reserved. The source is public to read, but it may not be used, copied or modified without the owner's written permission. Contact the owner through the GitHub profile first. See `LICENSE`.

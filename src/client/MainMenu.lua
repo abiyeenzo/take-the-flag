@@ -12,6 +12,7 @@ local Classes = require(ReplicatedStorage.Shared.Classes)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Weapons = require(ReplicatedStorage.Shared.Weapons)
+local Device = require(ReplicatedStorage.Shared.Device)
 local Hud = require(script.Parent.Hud)
 local Settings = require(script.Parent.Settings)
 local Store = require(script.Parent.Store)
@@ -28,6 +29,17 @@ local PLAY_TIMEOUT = 5
 
 local MainMenu = {}
 MainMenu.Visible = false
+
+-- Panels are scaled by Device.Scale(), so unscaled sizes are raised until text
+-- and buttons reach the minima on screen (14 phone, 16 tablet, 18 titles, 44 hit).
+local SCALE = Device.Scale()
+local MIN_TEXT = Device.Get() == "Tablet" and 16 or 14
+local function fs(size: number?): number
+	return math.max(size or 0, math.ceil(MIN_TEXT / SCALE))
+end
+local function hit(size: number?): number
+	return math.max(size or 0, math.ceil(44 / SCALE))
+end
 
 local function inGame(): boolean
 	return player:GetAttribute("InGame") == true
@@ -80,24 +92,45 @@ function MainMenu.Init(Menus: { Toggle: (string) -> () })
 		}),
 	})
 
-	local scale = New("UIScale", { Scale = 1 })
 	local content = New("Frame", {
 		Name = "Content",
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
 		Size = UDim2.fromOffset(380, 0),
-		AutomaticSize = Enum.AutomaticSize.Y,
+		AutomaticSize = Enum.AutomaticSize.XY,
 		BackgroundTransparency = 1,
 		Parent = fade,
 	}, {
-		scale,
-		New("UISizeConstraint", { MaxSize = Vector2.new(380, math.huge) }),
 		New("UIListLayout", {
 			SortOrder = Enum.SortOrder.LayoutOrder,
+			FillDirection = Enum.FillDirection.Vertical,
 			HorizontalAlignment = Enum.HorizontalAlignment.Center,
+			VerticalAlignment = Enum.VerticalAlignment.Center,
 			Padding = UDim.new(0, 10),
 		}),
 	})
+	UIKit.ApplyDeviceScale(content)
+
+	-- Two columns: stacked on portrait and desktop, side by side on phone landscape
+	local function newColumn(name: string, layoutOrder: number): Frame
+		return New("Frame", {
+			Name = name,
+			LayoutOrder = layoutOrder,
+			Size = UDim2.fromOffset(380, 0),
+			AutomaticSize = Enum.AutomaticSize.Y,
+			BackgroundTransparency = 1,
+			Parent = content,
+		}, {
+			New("UIListLayout", {
+				SortOrder = Enum.SortOrder.LayoutOrder,
+				HorizontalAlignment = Enum.HorizontalAlignment.Center,
+				VerticalAlignment = Enum.VerticalAlignment.Center,
+				Padding = UDim.new(0, 10),
+			}),
+		})
+	end
+	local columnA = newColumn("ColumnA", 1)
+	local columnB = newColumn("ColumnB", 2)
 
 	local order = 0
 	local function nextOrder(): number
@@ -114,7 +147,7 @@ function MainMenu.Init(Menus: { Toggle: (string) -> () })
 		TextSize = 32,
 		TextWrapped = true,
 		TextStrokeTransparency = 0.5,
-		Parent = content,
+		Parent = columnA,
 	})
 	local accent = New("Frame", {
 		Name = "Accent",
@@ -122,7 +155,7 @@ function MainMenu.Init(Menus: { Toggle: (string) -> () })
 		Size = UDim2.new(0.8, 0, 0, 5),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BorderSizePixel = 0,
-		Parent = content,
+		Parent = columnA,
 	}, {
 		UIKit.Corner(3),
 		New("UIGradient", {
@@ -136,34 +169,34 @@ function MainMenu.Init(Menus: { Toggle: (string) -> () })
 	Label({
 		Name = "Subtitle",
 		LayoutOrder = nextOrder(),
-		Size = UDim2.new(1, 0, 0, 24),
+		Size = UDim2.new(1, 0, 0, 28),
 		Text = "Neon capture the flag",
-		TextSize = 18,
+		TextSize = math.max(18, math.ceil(18 / SCALE)),
 		Font = Enum.Font.Gotham,
 		TextColor3 = Colors.Muted,
-		Parent = content,
+		Parent = columnA,
 	})
 
 	-- Buttons
 	local play = UIKit.Button({
 		Name = "Play",
 		LayoutOrder = nextOrder(),
-		Size = UDim2.new(1, 0, 0, 60),
+		Size = UDim2.new(1, 0, 0, hit(60)),
 		Text = "PLAY",
 		TextSize = 28,
 		BackgroundColor3 = Colors.Accent,
 		TextColor3 = Color3.fromRGB(30, 24, 6),
 		Selectable = true,
-		Parent = content,
+		Parent = columnB,
 	})
 	UIKit.Stroke(Color3.new(1, 1, 1), 2, 0.5).Parent = play
 
 	local row = New("Frame", {
 		Name = "Row",
 		LayoutOrder = nextOrder(),
-		Size = UDim2.new(1, 0, 0, 46),
+		Size = UDim2.new(1, 0, 0, hit(46)),
 		BackgroundTransparency = 1,
-		Parent = content,
+		Parent = columnB,
 	}, {
 		New("UIListLayout", {
 			FillDirection = Enum.FillDirection.Horizontal,
@@ -177,7 +210,7 @@ function MainMenu.Init(Menus: { Toggle: (string) -> () })
 			LayoutOrder = index,
 			Size = UDim2.new(1 / 3, -6, 1, 0),
 			Text = text,
-			TextSize = 16,
+			TextSize = fs(16),
 			Selectable = true,
 			Parent = row,
 		})
@@ -189,49 +222,54 @@ function MainMenu.Init(Menus: { Toggle: (string) -> () })
 	local settings = smallButton("Settings", "SETTINGS", 3)
 
 	-- Profile card
+	local LH = fs() + 4
+	local badgeSize = LH + 28
+	local cardHeight = math.max(64, badgeSize + 18)
 	local card = New("Frame", {
 		Name = "ProfileCard",
 		LayoutOrder = nextOrder(),
-		Size = UDim2.new(1, 0, 0, 64),
+		Size = UDim2.new(1, 0, 0, cardHeight),
 		BackgroundColor3 = Colors.Panel,
 		BackgroundTransparency = 0.15,
-		Parent = content,
+		Parent = columnA,
 	}, { UIKit.Corner(12), UIKit.Stroke(Colors.Stroke, 1.5, 0.3) })
 	local badge = New("Frame", {
-		Position = UDim2.fromOffset(8, 9),
-		Size = UDim2.fromOffset(46, 46),
+		AnchorPoint = Vector2.new(0, 0.5),
+		Position = UDim2.new(0, 8, 0.5, 0),
+		Size = UDim2.fromOffset(badgeSize, badgeSize),
 		BackgroundColor3 = Colors.Level,
 		Parent = card,
 	}, { UIKit.Corner(10) })
 	local levelLabel = Label({
-		Position = UDim2.fromOffset(0, 12),
-		Size = UDim2.new(1, 0, 1, -10),
+		Position = UDim2.fromOffset(0, LH - 2),
+		Size = UDim2.new(1, 0, 1, -(LH - 2)),
 		Text = "1",
 		TextSize = 24,
 		Parent = badge,
 	})
 	Label({
 		Position = UDim2.fromOffset(0, 1),
-		Size = UDim2.new(1, 0, 0, 14),
+		Size = UDim2.new(1, 0, 0, LH),
 		Text = "LV",
-		TextSize = 13,
+		TextSize = fs(),
 		TextTransparency = 0.3,
 		Parent = badge,
 	})
+	local textX = badgeSize + 18
 	local coinsLabel = Label({
-		Position = UDim2.fromOffset(64, 8),
-		Size = UDim2.new(1, -130, 0, 22),
+		Position = UDim2.new(0, textX, 0.5, -LH - 1),
+		Size = UDim2.new(1, -(textX + 56 + 8), 0, LH),
 		Text = "-- coins",
-		TextSize = 17,
+		TextSize = fs(17),
 		TextColor3 = Colors.Accent,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Parent = card,
 	})
 	local loadoutLabel = Label({
-		Position = UDim2.fromOffset(64, 32),
-		Size = UDim2.new(1, -74, 0, 22),
+		Position = UDim2.new(0, textX, 0.5, 1),
+		Size = UDim2.new(1, -(textX + 10), 0, LH),
 		Text = "Loading your profile...",
-		TextSize = 14,
+		TextSize = fs(),
 		Font = Enum.Font.Gotham,
 		TextColor3 = Colors.Muted,
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -242,11 +280,11 @@ function MainMenu.Init(Menus: { Toggle: (string) -> () })
 		Name = "VipBadge",
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -10, 0, 8),
-		Size = UDim2.fromOffset(40, 20),
+		Size = UDim2.fromOffset(fs() * 3, LH),
 		BackgroundTransparency = 0,
 		BackgroundColor3 = Colors.Accent,
 		Text = "VIP",
-		TextSize = 13,
+		TextSize = fs(),
 		TextColor3 = Color3.fromRGB(30, 24, 6),
 		Visible = false,
 		Parent = card,
@@ -274,33 +312,39 @@ function MainMenu.Init(Menus: { Toggle: (string) -> () })
 	local status = Label({
 		Name = "Status",
 		LayoutOrder = nextOrder(),
-		Size = UDim2.new(1, 0, 0, 24),
+		Size = UDim2.new(1, 0, 0, LH),
 		Text = "",
-		TextSize = 16,
+		TextSize = fs(16),
 		TextColor3 = Colors.Good,
-		Parent = content,
+		Parent = columnB,
 	})
 	Label({
 		Name = "Footer",
 		LayoutOrder = nextOrder(),
-		Size = UDim2.new(1, 0, 0, 20),
+		Size = UDim2.new(1, 0, 0, LH),
 		Text = "Follow abiye_enzo on YouTube",
-		TextSize = 13,
+		TextSize = fs(),
 		Font = Enum.Font.Gotham,
 		TextColor3 = Colors.Muted,
-		Parent = content,
+		Parent = columnB,
 	})
 
-	-- Fit small screens: shrink the whole column, never below readable
+	-- Phone landscape is too short for one column: put the two columns side by side
 	local camera = Workspace.CurrentCamera
-	local function updateScale()
+	local layout = content:FindFirstChildOfClass("UIListLayout") :: UIListLayout
+	local function updateLayout()
 		local cam = Workspace.CurrentCamera
 		local view = cam and cam.ViewportSize or Vector2.new(1000, 700)
-		scale.Scale = math.clamp(math.min(view.Y / 560, view.X / 400), 0.6, 1.15)
+		local wide = view.Y / SCALE < 480 and view.X / SCALE >= 720
+		layout.FillDirection = wide and Enum.FillDirection.Horizontal or Enum.FillDirection.Vertical
+		layout.Padding = UDim.new(0, wide and 24 or 10)
+		local width = wide and 340 or 380
+		columnA.Size = UDim2.fromOffset(width, 0)
+		columnB.Size = UDim2.fromOffset(width, 0)
 	end
-	updateScale()
+	updateLayout()
 	if camera then
-		camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateScale)
+		camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateLayout)
 	end
 
 	-- Camera orbit around the lobby

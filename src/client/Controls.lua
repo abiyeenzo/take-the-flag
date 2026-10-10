@@ -5,80 +5,12 @@ local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
-local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
-local Weapons = require(ReplicatedStorage.Shared.Weapons)
+local AimService = require(script.Parent.AimService)
+local MouseLock = require(script.Parent.MouseLock)
 
 local player = Players.LocalPlayer
 local Controls = {}
-
-local hooked: { [Tool]: boolean } = {}
-
-local function aimPoint(): Vector3
-	local camera = Workspace.CurrentCamera
-	local viewport = camera.ViewportSize
-	local screen
-	if UserInputService.TouchEnabled and not UserInputService.MouseEnabled then
-		screen = Vector2.new(viewport.X / 2, viewport.Y / 2)
-	else
-		screen = UserInputService:GetMouseLocation()
-	end
-	local ray = camera:ViewportPointToRay(screen.X, screen.Y)
-
-	local params = RaycastParams.new()
-	params.FilterType = Enum.RaycastFilterType.Exclude
-	params.FilterDescendantsInstances = { player.Character }
-	local result = Workspace:Raycast(ray.Origin, ray.Direction * Config.ShotRange, params)
-	return result and result.Position or ray.Origin + ray.Direction * Config.ShotRange
-end
-
-local function hookTool(tool: Tool)
-	if hooked[tool] or not tool:GetAttribute("IsWeapon") then
-		return
-	end
-	hooked[tool] = true
-
-	local holding = false
-	local looping = false
-
-	tool.Activated:Connect(function()
-		holding = true
-		if looping then
-			return
-		end
-		looping = true
-		task.spawn(function()
-			while holding and tool.Parent == player.Character do
-				Remotes.Fire:FireServer(aimPoint())
-				local weaponId = player.Character and player.Character:GetAttribute("Weapon") or Weapons.Default
-				local def = Weapons.Defs[weaponId] or Weapons.Defs[Weapons.Default]
-				local overcharged = (player.Character and player.Character:GetAttribute("OverchargeUntil") or 0)
-					> Workspace:GetServerTimeNow()
-				task.wait(def.FireDelay * (overcharged and 0.67 or 1))
-			end
-			looping = false
-		end)
-	end)
-	tool.Deactivated:Connect(function()
-		holding = false
-	end)
-	tool.Unequipped:Connect(function()
-		holding = false
-	end)
-end
-
-local function watchCharacter(character: Model)
-	for _, child in ipairs(character:GetChildren()) do
-		if child:IsA("Tool") then
-			hookTool(child)
-		end
-	end
-	character.ChildAdded:Connect(function(child)
-		if child:IsA("Tool") then
-			hookTool(child)
-		end
-	end)
-end
 
 local function drawShot(origin: Vector3, endpoint: Vector3, color: Color3)
 	local distance = (endpoint - origin).Magnitude
@@ -118,10 +50,8 @@ function Controls.Init()
 	Remotes:WaitForChild("ShotFx").OnClientEvent:Connect(drawShot)
 	Remotes:WaitForChild("AbilityFx").OnClientEvent:Connect(onAbilityFx)
 
-	player.CharacterAdded:Connect(watchCharacter)
-	if player.Character then
-		watchCharacter(player.Character)
-	end
+	MouseLock.Init()
+	AimService.Init()
 
 	UserInputService.InputBegan:Connect(function(input, processed)
 		if processed then

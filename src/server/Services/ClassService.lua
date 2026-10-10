@@ -24,6 +24,7 @@ function ClassService.MakeWeaponTool(weaponId: string, color: Color3): Tool
 	tool.Name = def.Name
 	tool.CanBeDropped = false
 	tool.RequiresHandle = true
+	tool.ManualActivationOnly = true
 	tool.GripPos = Vector3.new(0, -0.1, 0.5)
 	tool:SetAttribute("IsWeapon", true)
 	tool:SetAttribute("WeaponId", def.Id)

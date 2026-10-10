@@ -13,12 +13,12 @@ Monetization.GamePasses = {
 }
 
 Monetization.Products = {
-	coins_small = { Id = 0, Name = "500 Coins", Robux = 49, Coins = 500 },
-	coins_medium = { Id = 0, Name = "2,000 Coins", Robux = 149, Coins = 2000 },
-	coins_large = { Id = 0, Name = "6,000 Coins", Robux = 399, Coins = 6000 },
-	weapon_pulse = { Id = 0, Name = "Pulse SMG", Robux = 79, Weapon = "Pulse" },
-	weapon_scatter = { Id = 0, Name = "Scatter Cannon", Robux = 129, Weapon = "Scatter" },
-	weapon_rail = { Id = 0, Name = "Rail Rifle", Robux = 199, Weapon = "Rail" },
+	coins_small = { Id = 3717584812, Name = "500 Coins", Robux = 49, Coins = 500 },
+	coins_medium = { Id = 3717584912, Name = "2,000 Coins", Robux = 149, Coins = 2000 },
+	coins_large = { Id = 3717584967, Name = "6,000 Coins", Robux = 399, Coins = 6000 },
+	weapon_pulse = { Id = 3717585068, Name = "Pulse SMG", Robux = 79, Weapon = "Pulse" },
+	weapon_scatter = { Id = 3717585162, Name = "Scatter Cannon", Robux = 129, Weapon = "Scatter" },
+	weapon_rail = { Id = 3717585221, Name = "Rail Rifle", Robux = 199, Weapon = "Rail" },
 }
 
 -- Display order for the coin packs in the shop

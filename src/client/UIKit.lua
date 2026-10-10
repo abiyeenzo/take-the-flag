@@ -1,3 +1,8 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+
+local Device = require(ReplicatedStorage.Shared.Device)
+
 local UIKit = {}
 
 UIKit.Colors = {
@@ -67,13 +72,73 @@ function UIKit.Button(props: { [string]: any }): TextButton
 		BackgroundColor3 = UIKit.Colors.PanelLight,
 		Font = Enum.Font.GothamBold,
 		TextColor3 = UIKit.Colors.Text,
-		TextSize = 15,
+		TextSize = math.max(15, UIKit.EffectiveMinText()),
 		Text = "",
 	}
 	for key, value in pairs(props) do
 		merged[key] = value
 	end
 	return UIKit.New("TextButton", merged, { UIKit.Corner(8) })
+end
+
+-- Smallest readable text size for the current device class.
+function UIKit.MinTextSize(): number
+	local class = Device.Get()
+	if class == "Tablet" then
+		return 16
+	end
+	return 14
+end
+
+-- Text size to author inside the scaled HUD tree so it renders at MinTextSize
+function UIKit.EffectiveMinText(): number
+	return math.ceil(UIKit.MinTextSize() / Device.Scale())
+end
+
+UIKit.TitleSize = 18
+UIKit.MinHitTarget = 44
+
+-- Returns "Phone", "Tablet" or "Desktop".
+function UIKit.DeviceClass(): string
+	return Device.Get()
+end
+
+-- True when the device uses touch controls (phone or tablet).
+function UIKit.IsTouch(): boolean
+	return Device.IsTouchPrimary()
+end
+
+-- Adds (or reuses) a UIScale named "DeviceScale" on a full screen root and keeps
+-- it in sync with Device.Scale(). The root size is divided by the scale, so a root
+-- that filled the screen still fills it. Returns the UIScale.
+function UIKit.ApplyDeviceScale(root: GuiObject): UIScale
+	-- Inside the HUD tree the wrapper already scales everything: do nothing
+	local wrapper = root:FindFirstAncestor("Scaled")
+	if wrapper then
+		local outer = wrapper:FindFirstChild("DeviceScale")
+		if outer and outer:IsA("UIScale") then
+			return outer
+		end
+	end
+	local existing = root:FindFirstChild("DeviceScale")
+	local scale: UIScale
+	if existing and existing:IsA("UIScale") then
+		scale = existing
+	else
+		scale = UIKit.New("UIScale", { Name = "DeviceScale", Parent = root })
+	end
+	local base = root.Size
+	local function update()
+		local value = Device.Scale()
+		scale.Scale = value
+		root.Size = UDim2.new(base.X.Scale / value, base.X.Offset, base.Y.Scale / value, base.Y.Offset)
+	end
+	update()
+	local camera = Workspace.CurrentCamera
+	if camera then
+		camera:GetPropertyChangedSignal("ViewportSize"):Connect(update)
+	end
+	return scale
 end
 
 function UIKit.FormatTime(seconds: number): string

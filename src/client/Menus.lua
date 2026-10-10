@@ -7,6 +7,8 @@ local Cosmetics = require(ReplicatedStorage.Shared.Cosmetics)
 local Monetization = require(ReplicatedStorage.Shared.Monetization)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Weapons = require(ReplicatedStorage.Shared.Weapons)
+local Device = require(ReplicatedStorage.Shared.Device)
+local Hud = require(script.Parent.Hud)
 local Store = require(script.Parent.Store)
 local UIKit = require(script.Parent.UIKit)
 
@@ -16,6 +18,23 @@ local Menus = {}
 
 local panels: { [string]: Frame } = {}
 local refreshers: { [string]: () -> () } = {}
+
+-- Effective sizes: the panels are scaled by Device.Scale(), so the unscaled
+-- numbers are raised until text and buttons reach the minima on screen.
+local SCALE = Device.Scale()
+local MIN_TEXT = Device.Get() == "Tablet" and 16 or 14
+local function fs(size: number?): number
+	return math.max(size or 0, math.ceil(MIN_TEXT / SCALE))
+end
+local function titleSize(size: number?): number
+	return math.max(size or 0, math.ceil(18 / SCALE))
+end
+local function hit(size: number?): number
+	return math.max(size or 0, math.ceil(44 / SCALE))
+end
+local function line(): number
+	return fs() + 4
+end
 
 local function buildPanel(gui: GuiObject, name: string, title: string, size: Vector2)
 	local panel = New("Frame", {
@@ -37,18 +56,20 @@ local function buildPanel(gui: GuiObject, name: string, title: string, size: Vec
 
 	Label({
 		Position = UDim2.fromOffset(20, 14),
-		Size = UDim2.new(0.5, -20, 0, 32),
+		Size = UDim2.new(0.6, -20, 0, hit(32)),
 		Text = title,
-		TextSize = 24,
+		TextSize = titleSize(24),
+		TextTruncate = Enum.TextTruncate.AtEnd,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		ZIndex = 11,
 		Parent = panel,
 	})
 	local close = UIKit.Button({
 		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -14, 0, 12),
-		Size = UDim2.fromOffset(48, 44),
+		Position = UDim2.new(1, -14, 0, 10),
+		Size = UDim2.fromOffset(hit(48), hit(44)),
 		Text = "X",
+		TextSize = fs(16),
 		ZIndex = 11,
 		Parent = panel,
 	})
@@ -84,18 +105,18 @@ local function styleButton(button: TextButton, text: string, kind: string, enabl
 end
 
 local function buildClassMenu(gui: GuiObject)
-	local panel = buildPanel(gui, "Classes", "CHOOSE YOUR CLASS", Vector2.new(700, 380))
+	local panel = buildPanel(gui, "Classes", "CHOOSE YOUR CLASS", Vector2.new(720, 440))
 	local cards = {}
 
 	local row = New("ScrollingFrame", {
-		Position = UDim2.fromOffset(16, 62),
-		Size = UDim2.new(1, -32, 1, -76),
+		Position = UDim2.fromOffset(16, hit(32) + 24),
+		Size = UDim2.new(1, -32, 1, -(hit(32) + 38)),
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		ScrollBarThickness = 6,
 		CanvasSize = UDim2.new(),
-		AutomaticCanvasSize = Enum.AutomaticSize.X,
-		ScrollingDirection = Enum.ScrollingDirection.X,
+		AutomaticCanvasSize = Enum.AutomaticSize.XY,
+		ScrollingDirection = Enum.ScrollingDirection.XY,
 		ZIndex = 11,
 		Parent = panel,
 	}, {
@@ -110,7 +131,8 @@ local function buildClassMenu(gui: GuiObject)
 		local def = Classes.Defs[id]
 		local card = New("Frame", {
 			LayoutOrder = index,
-			Size = UDim2.new(0, 210, 1, -10),
+			Size = UDim2.fromOffset(220, 0),
+			AutomaticSize = Enum.AutomaticSize.Y,
 			BackgroundColor3 = Colors.PanelLight,
 			ClipsDescendants = true,
 			ZIndex = 11,
@@ -125,18 +147,18 @@ local function buildClassMenu(gui: GuiObject)
 
 		Label({
 			LayoutOrder = 1,
-			Size = UDim2.new(1, 0, 0, 26),
+			Size = UDim2.new(1, 0, 0, titleSize(22) + 4),
 			Text = string.upper(def.Name),
-			TextSize = 22,
+			TextSize = titleSize(22),
 			TextXAlignment = Enum.TextXAlignment.Left,
 			ZIndex = 12,
 			Parent = card,
 		})
 		Label({
 			LayoutOrder = 2,
-			Size = UDim2.new(1, 0, 0, 18),
+			Size = UDim2.new(1, 0, 0, line()),
 			Text = "ABILITY: " .. string.upper(def.Ability),
-			TextSize = 14,
+			TextSize = fs(),
 			TextColor3 = Colors.Accent,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			ZIndex = 12,
@@ -147,7 +169,7 @@ local function buildClassMenu(gui: GuiObject)
 			Size = UDim2.new(1, 0, 0, 0),
 			AutomaticSize = Enum.AutomaticSize.Y,
 			Text = def.Description,
-			TextSize = 14,
+			TextSize = fs(),
 			TextWrapped = true,
 			TextYAlignment = Enum.TextYAlignment.Top,
 			TextColor3 = Colors.Muted,
@@ -158,9 +180,9 @@ local function buildClassMenu(gui: GuiObject)
 		})
 		Label({
 			LayoutOrder = 4,
-			Size = UDim2.new(1, 0, 0, 50),
+			Size = UDim2.new(1, 0, 0, line() * 3),
 			Text = ("Health  %d\nSpeed  %.1f\nDamage  x%.1f"):format(def.Health, def.Speed, def.DamageMult),
-			TextSize = 14,
+			TextSize = fs(),
 			TextYAlignment = Enum.TextYAlignment.Top,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			ZIndex = 12,
@@ -168,8 +190,8 @@ local function buildClassMenu(gui: GuiObject)
 		})
 		local button = UIKit.Button({
 			LayoutOrder = 5,
-			Size = UDim2.new(1, 0, 0, 44),
-			TextSize = 14,
+			Size = UDim2.new(1, 0, 0, hit(44)),
+			TextSize = fs(),
 			TextWrapped = true,
 			ZIndex = 12,
 			Parent = card,
@@ -201,13 +223,15 @@ local function buildClassMenu(gui: GuiObject)
 end
 
 local function buildShop(gui: GuiObject)
-	local panel = buildPanel(gui, "Shop", "SHOP", Vector2.new(760, 500))
+	local panel = buildPanel(gui, "Shop", "SHOP", Vector2.new(780, 560))
+	local TAB_Y = hit(32) + 26
+	local PAGE_Y = TAB_Y + hit(44) + 10
 	local coins = Label({
 		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -70, 0, 18),
-		Size = UDim2.new(0.4, 0, 0, 26),
+		Position = UDim2.new(1, -(hit(48) + 24), 0, 18),
+		Size = UDim2.new(0.4, 0, 0, hit(26)),
 		Text = "",
-		TextSize = 18,
+		TextSize = titleSize(18),
 		TextColor3 = Colors.Accent,
 		TextXAlignment = Enum.TextXAlignment.Right,
 		ZIndex = 11,
@@ -215,8 +239,8 @@ local function buildShop(gui: GuiObject)
 	})
 
 	local tabBar = New("Frame", {
-		Position = UDim2.fromOffset(20, 58),
-		Size = UDim2.new(1, -40, 0, 44),
+		Position = UDim2.fromOffset(20, TAB_Y),
+		Size = UDim2.new(1, -40, 0, hit(44)),
 		BackgroundTransparency = 1,
 		ZIndex = 11,
 		Parent = panel,
@@ -245,7 +269,7 @@ local function buildShop(gui: GuiObject)
 		local tab = UIKit.Button({
 			LayoutOrder = order,
 			Size = UDim2.new(0.3, 0, 1, 0),
-			TextSize = 14,
+			TextSize = fs(),
 			Text = text,
 			ZIndex = 12,
 			Parent = tabBar,
@@ -256,8 +280,8 @@ local function buildShop(gui: GuiObject)
 		tabButtons[name] = tab
 
 		pages[name] = New("ScrollingFrame", {
-			Position = UDim2.fromOffset(20, 112),
-			Size = UDim2.new(1, -40, 1, -132),
+			Position = UDim2.fromOffset(20, PAGE_Y),
+			Size = UDim2.new(1, -40, 1, -(PAGE_Y + 14)),
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
 			ScrollBarThickness = 6,
@@ -307,33 +331,38 @@ local function buildShop(gui: GuiObject)
 	local updaters: { () -> () } = {}
 
 	-- WEAPONS tab
-	local weaponPage = addTab("Weapons", "WEAPONS", 1, Vector2.new(230, 270))
+	local LH = line()
+	local BH = hit(44)
+	local weaponDescY = 8 + titleSize(18) + 10
+	local weaponStatsY = weaponDescY + LH * 3 + 4
+	local weaponH = weaponStatsY + LH * 4 + 6 + BH * 2 + 6 + 10
+	local weaponPage = addTab("Weapons", "WEAPONS", 1, Vector2.new(230, weaponH))
 	for index, id in ipairs(Weapons.Order) do
 		local def = Weapons.Defs[id]
 		local card, stroke = newCard(weaponPage, index)
-		cardText(card, 8, 24, def.Name, 18)
-		cardText(card, 34, 38, def.Description, 14, Colors.Muted, Enum.Font.Gotham)
+		cardText(card, 8, titleSize(18) + 4, def.Name, titleSize(18))
+		cardText(card, weaponDescY, LH * 3, def.Description, fs(), Colors.Muted, Enum.Font.Gotham)
 		cardText(
 			card,
-			76,
-			80,
+			weaponStatsY,
+			LH * 4,
 			("Damage  %d\nFire rate  %.1f / sec\nPellets  %d\nRange  %d"):format(def.Damage, 1 / def.FireDelay, def.Pellets, def.Range),
-			14
+			fs()
 		)
 
 		local main = UIKit.Button({
 			AnchorPoint = Vector2.new(0.5, 1),
-			Position = UDim2.new(0.5, 0, 1, -8),
-			Size = UDim2.new(1, -20, 0, 44),
-			TextSize = 14,
+			Position = UDim2.new(0.5, 0, 1, -10),
+			Size = UDim2.new(1, -20, 0, BH),
+			TextSize = fs(),
 			ZIndex = 13,
 			Parent = card,
 		})
 		local robux = UIKit.Button({
 			AnchorPoint = Vector2.new(0.5, 1),
-			Position = UDim2.new(0.5, 0, 1, -58),
-			Size = UDim2.new(1, -20, 0, 44),
-			TextSize = 14,
+			Position = UDim2.new(0.5, 0, 1, -(10 + BH + 6)),
+			Size = UDim2.new(1, -20, 0, BH),
+			TextSize = fs(),
 			ZIndex = 13,
 			Parent = card,
 		})
@@ -394,13 +423,14 @@ local function buildShop(gui: GuiObject)
 	end
 
 	-- TRAILS tab
-	local trailPage = addTab("Trails", "TRAILS", 2, Vector2.new(150, 160))
+	local trailH = 12 + hit(44) + 8 + LH + 6 + BH + 10
+	local trailPage = addTab("Trails", "TRAILS", 2, Vector2.new(170, trailH))
 	local function addTrail(id: string, name: string, price: number, swatch: Color3?, order: number)
 		local card, stroke = newCard(trailPage, order)
 		local trail = Cosmetics.ById[id]
 		local sw = New("Frame", {
 			Position = UDim2.fromOffset(12, 12),
-			Size = UDim2.new(1, -24, 0, 44),
+			Size = UDim2.new(1, -24, 0, hit(44)),
 			BackgroundColor3 = swatch or Colors.Panel,
 			ZIndex = 13,
 			Parent = card,
@@ -409,18 +439,19 @@ local function buildShop(gui: GuiObject)
 			New("UIGradient", { Color = trail.Color, Parent = sw })
 		end
 		Label({
-			Position = UDim2.fromOffset(8, 62),
-			Size = UDim2.new(1, -16, 0, 22),
+			Position = UDim2.fromOffset(8, 12 + hit(44) + 8),
+			Size = UDim2.new(1, -16, 0, LH),
 			Text = name,
-			TextSize = 16,
+			TextSize = fs(16),
+			TextTruncate = Enum.TextTruncate.AtEnd,
 			ZIndex = 13,
 			Parent = card,
 		})
 		local button = UIKit.Button({
 			AnchorPoint = Vector2.new(0.5, 1),
 			Position = UDim2.new(0.5, 0, 1, -10),
-			Size = UDim2.new(1, -20, 0, 44),
-			TextSize = 14,
+			Size = UDim2.new(1, -20, 0, BH),
+			TextSize = fs(),
 			ZIndex = 13,
 			Parent = card,
 		})
@@ -472,18 +503,19 @@ local function buildShop(gui: GuiObject)
 	end
 
 	-- STORE tab (Robux)
-	local storePage = addTab("Store", "STORE", 3, Vector2.new(230, 190))
+	local storeH = 8 + titleSize(18) + 10 + LH * 5 + 6 + BH + 10
+	local storePage = addTab("Store", "STORE", 3, Vector2.new(230, storeH))
 
 	local vipDef = Monetization.GamePasses.VIP
 	local vipCard, vipStroke = newCard(storePage, 0)
 	vipStroke.Color = Colors.Accent
-	cardText(vipCard, 8, 24, "VIP PASS", 18, Colors.Accent)
-	cardText(vipCard, 36, 90, vipDef.Description, 14, Colors.Muted, Enum.Font.Gotham)
+	cardText(vipCard, 8, titleSize(18) + 4, "VIP PASS", titleSize(18), Colors.Accent)
+	cardText(vipCard, 8 + titleSize(18) + 10, LH * 5, vipDef.Description, fs(), Colors.Muted, Enum.Font.Gotham)
 	local vipButton = UIKit.Button({
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -8),
-		Size = UDim2.new(1, -20, 0, 44),
-		TextSize = 14,
+		Position = UDim2.new(0.5, 0, 1, -10),
+		Size = UDim2.new(1, -20, 0, BH),
+		TextSize = fs(),
 		ZIndex = 13,
 		Parent = vipCard,
 	})
@@ -510,13 +542,13 @@ local function buildShop(gui: GuiObject)
 	for index, key in ipairs(Monetization.CoinPackOrder) do
 		local product = Monetization.Products[key]
 		local card = newCard(storePage, index)
-		cardText(card, 8, 24, product.Name, 18)
-		cardText(card, 36, 40, "Instant coins for the weapon and trail shops.", 14, Colors.Muted, Enum.Font.Gotham)
+		cardText(card, 8, titleSize(18) + 4, product.Name, titleSize(18))
+		cardText(card, 8 + titleSize(18) + 10, LH * 5, "Instant coins for the weapon and trail shops.", fs(), Colors.Muted, Enum.Font.Gotham)
 		local button = UIKit.Button({
 			AnchorPoint = Vector2.new(0.5, 1),
-			Position = UDim2.new(0.5, 0, 1, -8),
-			Size = UDim2.new(1, -20, 0, 44),
-			TextSize = 14,
+			Position = UDim2.new(0.5, 0, 1, -10),
+			Size = UDim2.new(1, -20, 0, BH),
+			TextSize = fs(),
 			ZIndex = 13,
 			Parent = card,
 		})
@@ -551,14 +583,25 @@ end
 local modalGui: GuiObject? = nil
 local modalButton: TextButton? = nil
 
+-- Every panel that can hold the mouse: Shop, Classes and Settings. The count
+-- is derived from the Visible flags, so no close path can leave MenuOpen stuck.
+local tracked: { Frame } = {}
+local menuOpen = false
+local syncQueued = false
+
 -- A Modal button frees the mouse in first person and shift lock while a menu is open
-local function syncModal()
-	local anyOpen = false
-	for _, panel in pairs(panels) do
+local function syncNow()
+	syncQueued = false
+	local count = 0
+	for _, panel in ipairs(tracked) do
 		if panel.Visible then
-			anyOpen = true
-			break
+			count += 1
 		end
+	end
+	local anyOpen = count > 0
+	if anyOpen ~= menuOpen then
+		menuOpen = anyOpen
+		Hud.SetMenuOpen(anyOpen)
 	end
 	if anyOpen and not modalButton and modalGui then
 		modalButton = New("TextButton", {
@@ -575,6 +618,15 @@ local function syncModal()
 		modalButton:Destroy()
 		modalButton = nil
 	end
+end
+
+-- Coalesced, so closing one panel while opening another never flickers MenuOpen
+local function syncModal()
+	if syncQueued then
+		return
+	end
+	syncQueued = true
+	task.defer(syncNow)
 end
 
 function Menus.Toggle(name: string)
@@ -597,13 +649,20 @@ function Menus.Init(gui: GuiObject, buttons: { [string]: TextButton })
 	buildClassMenu(gui)
 	buildShop(gui)
 	for _, panel in pairs(panels) do
+		table.insert(tracked, panel)
+	end
+	local settingsPanel = gui:FindFirstChild("Settings")
+	if settingsPanel and settingsPanel:IsA("Frame") then
+		table.insert(tracked, settingsPanel)
+	end
+	for _, panel in ipairs(tracked) do
 		panel:GetPropertyChangedSignal("Visible"):Connect(syncModal)
 	end
 
-	-- entering the game closes any shop or class panel left open on the main menu
+	-- entering the game closes any shop, class or settings panel left open on the main menu
 	Players.LocalPlayer:GetAttributeChangedSignal("InGame"):Connect(function()
 		if Players.LocalPlayer:GetAttribute("InGame") == true then
-			for _, panel in pairs(panels) do
+			for _, panel in ipairs(tracked) do
 				panel.Visible = false
 			end
 		end

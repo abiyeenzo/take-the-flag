@@ -4,3 +4,14 @@ build/
 *.rbxm
 .env
 *.key
+
+# local notes and assistant or tooling files never belong in the game repository
+docs/
+tools/update-listing.sh
+.claude/
+CLAUDE.md
+AGENTS.md
+graphify-out/
+.graphify*/
+*.local.json
+.env*

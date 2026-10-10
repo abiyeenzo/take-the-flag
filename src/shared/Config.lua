@@ -13,6 +13,8 @@ local Config = {
 	RespawnTime = 4,
 	SpawnProtection = 3,
 	ShotRange = 400,
+	AimAssistAngle = 6,
+	AimAssistLerp = 0.6,
 	HeadshotMultiplier = 1.5,
 	KillAssistWindow = 5,
 

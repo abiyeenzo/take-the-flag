@@ -2,7 +2,9 @@ local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
-local Remotes = require(game:GetService("ReplicatedStorage").Shared.Remotes)
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Device = require(ReplicatedStorage.Shared.Device)
+local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local UIKit = require(script.Parent.UIKit)
 
 local New, Label, Colors = UIKit.New, UIKit.Label, UIKit.Colors
@@ -26,6 +28,20 @@ local OPTIONS = {
 	{ Key = "LargeText", Title = "Large interface", Hint = "Makes the whole screen bigger" },
 	{ Key = "ColorBlindMarks", Title = "Team letters", Hint = "Adds R and B letters next to team colors" },
 }
+
+-- Panels are scaled by Device.Scale(), so unscaled sizes are raised until text
+-- and buttons reach the minima on screen (14 phone, 16 tablet, 18 titles, 44 hit).
+local SCALE = Device.Scale()
+local MIN_TEXT = Device.Get() == "Tablet" and 16 or 14
+local function fs(size: number?): number
+	return math.max(size or 0, math.ceil(MIN_TEXT / SCALE))
+end
+local function titleSize(size: number?): number
+	return math.max(size or 0, math.ceil(18 / SCALE))
+end
+local function hit(size: number?): number
+	return math.max(size or 0, math.ceil(44 / SCALE))
+end
 
 local gui: Frame? = nil
 local uiScale: UIScale? = nil
@@ -99,7 +115,7 @@ local function applyMarks()
 						Size = UDim2.fromOffset(22, 22),
 						Position = UDim2.fromOffset(2, 1),
 						Text = letter,
-						TextSize = 15,
+						TextSize = fs(15),
 						TextColor3 = Colors.Accent,
 						Parent = descendant,
 					})
@@ -131,6 +147,11 @@ function Settings.Toggle()
 end
 
 local function buildPanel(parent: GuiObject)
+	local LH = fs() + 4
+	local BH = hit(44)
+	local TOP = hit(32) + 24
+	local ROW_H = math.max(64, 8 + LH + 3 * LH + 8)
+	local BOTTOM = 10 + LH + 6 + BH + 10
 	local frame = New("Frame", {
 		Name = "Settings",
 		AnchorPoint = Vector2.new(0.5, 0.5),
@@ -145,24 +166,25 @@ local function buildPanel(parent: GuiObject)
 	}, {
 		UIKit.Corner(14),
 		UIKit.Stroke(Colors.Stroke, 2, 0.2),
-		New("UISizeConstraint", { MaxSize = Vector2.new(420, 190 + #OPTIONS * 68) }),
+		New("UISizeConstraint", { MaxSize = Vector2.new(460, TOP + #OPTIONS * (ROW_H + 6) + BOTTOM + 10) }),
 	})
 	panel = frame
 
 	Label({
 		Position = UDim2.fromOffset(20, 14),
-		Size = UDim2.new(1, -80, 0, 32),
+		Size = UDim2.new(1, -(hit(44) + 40), 0, hit(32)),
 		Text = "SETTINGS",
-		TextSize = 24,
+		TextSize = titleSize(24),
 		TextXAlignment = Enum.TextXAlignment.Left,
 		ZIndex = 21,
 		Parent = frame,
 	})
 	local close = UIKit.Button({
 		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -14, 0, 12),
-		Size = UDim2.fromOffset(44, 44),
+		Position = UDim2.new(1, -14, 0, 10),
+		Size = UDim2.fromOffset(hit(44), hit(44)),
 		Text = "X",
+		TextSize = fs(16),
 		ZIndex = 21,
 		Parent = frame,
 	})
@@ -171,8 +193,8 @@ local function buildPanel(parent: GuiObject)
 	end)
 
 	local list = New("ScrollingFrame", {
-		Position = UDim2.fromOffset(14, 62),
-		Size = UDim2.new(1, -28, 1, -140),
+		Position = UDim2.fromOffset(14, TOP),
+		Size = UDim2.new(1, -28, 1, -(TOP + BOTTOM)),
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		ScrollBarThickness = 6,
@@ -188,25 +210,25 @@ local function buildPanel(parent: GuiObject)
 	for index, option in ipairs(OPTIONS) do
 		local row = New("Frame", {
 			LayoutOrder = index,
-			Size = UDim2.new(1, -10, 0, 64),
+			Size = UDim2.new(1, -10, 0, ROW_H),
 			BackgroundColor3 = Colors.PanelLight,
 			ZIndex = 21,
 			Parent = list,
 		}, { UIKit.Corner(10) })
 		Label({
 			Position = UDim2.fromOffset(12, 6),
-			Size = UDim2.new(1, -100, 0, 22),
+			Size = UDim2.new(1, -(hit(68) + 30), 0, LH),
 			Text = option.Title,
-			TextSize = 16,
+			TextSize = fs(16),
 			TextXAlignment = Enum.TextXAlignment.Left,
 			ZIndex = 22,
 			Parent = row,
 		})
 		Label({
-			Position = UDim2.fromOffset(12, 28),
-			Size = UDim2.new(1, -100, 0, 34),
+			Position = UDim2.fromOffset(12, 6 + LH),
+			Size = UDim2.new(1, -(hit(68) + 30), 0, 3 * LH),
 			Text = option.Hint,
-			TextSize = 13,
+			TextSize = fs(),
 			TextYAlignment = Enum.TextYAlignment.Top,
 			TextColor3 = Colors.Muted,
 			Font = Enum.Font.Gotham,
@@ -218,7 +240,8 @@ local function buildPanel(parent: GuiObject)
 		local toggle = UIKit.Button({
 			AnchorPoint = Vector2.new(1, 0.5),
 			Position = UDim2.new(1, -10, 0.5, 0),
-			Size = UDim2.fromOffset(68, 44),
+			Size = UDim2.fromOffset(hit(68), BH),
+			TextSize = fs(),
 			ZIndex = 22,
 			Parent = row,
 		})
@@ -232,9 +255,10 @@ local function buildPanel(parent: GuiObject)
 	local back = UIKit.Button({
 		Name = "BackToMenu",
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -34),
-		Size = UDim2.new(1, -28, 0, 44),
+		Position = UDim2.new(0.5, 0, 1, -(10 + LH + 6)),
+		Size = UDim2.new(1, -28, 0, BH),
 		Text = "Back to main menu",
+		TextSize = fs(),
 		ZIndex = 21,
 		Parent = frame,
 	})
@@ -256,9 +280,9 @@ local function buildPanel(parent: GuiObject)
 	Label({
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, -10),
-		Size = UDim2.new(1, -28, 0, 20),
+		Size = UDim2.new(1, -28, 0, LH),
 		Text = "Settings are kept until you leave the game.",
-		TextSize = 13,
+		TextSize = fs(),
 		TextColor3 = Colors.Muted,
 		Font = Enum.Font.Gotham,
 		ZIndex = 21,
@@ -279,9 +303,9 @@ function Settings.Init(hudGui: Frame)
 	local gear = UIKit.Button({
 		Name = "SettingsButton",
 		Position = UDim2.fromOffset(12, 10),
-		Size = UDim2.fromOffset(48, 44),
+		Size = UDim2.fromOffset(hit(48), hit(44)),
 		Text = "G",
-		TextSize = 20,
+		TextSize = fs(20),
 		BackgroundColor3 = Colors.Panel,
 		Parent = hudGui,
 	})
