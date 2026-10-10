@@ -5,9 +5,9 @@ local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
-local Classes = require(ReplicatedStorage.Shared.Classes)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Weapons = require(ReplicatedStorage.Shared.Weapons)
 
 local player = Players.LocalPlayer
 local Controls = {}
@@ -33,7 +33,7 @@ local function aimPoint(): Vector3
 end
 
 local function hookTool(tool: Tool)
-	if hooked[tool] or tool.Name ~= "Blaster" then
+	if hooked[tool] or not tool:GetAttribute("IsWeapon") then
 		return
 	end
 	hooked[tool] = true
@@ -50,7 +50,8 @@ local function hookTool(tool: Tool)
 		task.spawn(function()
 			while holding and tool.Parent == player.Character do
 				Remotes.Fire:FireServer(aimPoint())
-				local def = Classes.Defs[player.Character and player.Character:GetAttribute("Class") or player:GetAttribute("Class")] or Classes.Defs[Classes.Default]
+				local weaponId = player.Character and player.Character:GetAttribute("Weapon") or Weapons.Default
+				local def = Weapons.Defs[weaponId] or Weapons.Defs[Weapons.Default]
 				local overcharged = (player.Character and player.Character:GetAttribute("OverchargeUntil") or 0)
 					> Workspace:GetServerTimeNow()
 				task.wait(def.FireDelay * (overcharged and 0.67 or 1))

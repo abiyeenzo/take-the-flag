@@ -20,6 +20,14 @@ local Config = {
 	AutosaveInterval = 120,
 	DataStoreName = "TakeTheFlag_v1",
 
+	-- Bots fill the match so nobody plays alone. Total actors (humans + bots) aimed for.
+	BotTargetPlayers = 8,
+	CountdownSeconds = 3,
+	LobbyCenter = Vector3.new(0, 0, 420),
+
+	VipCoinMultiplier = 2,
+	VipXpMultiplier = 1.25,
+
 	-- Arena dimensions in studs
 	ArenaLength = 240,
 	ArenaWidth = 130,
@@ -34,6 +42,7 @@ local Config = {
 	Rewards = {
 		Capture = { Coins = 50, XP = 80 },
 		Kill = { Coins = 10, XP = 15 },
+		BotKill = { Coins = 5, XP = 8 },
 		Return = { Coins = 15, XP = 25 },
 		Win = { Coins = 100, XP = 120 },
 		Play = { Coins = 20, XP = 30 },

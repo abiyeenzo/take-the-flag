@@ -3,9 +3,14 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Cosmetics = require(ReplicatedStorage.Shared.Cosmetics)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Weapons = require(ReplicatedStorage.Shared.Weapons)
 local DataService = require(script.Parent.DataService)
+local ClassService = require(script.Parent.ClassService)
 
 local ShopService = {}
+
+local ACTION_COOLDOWN = 0.3
+local lastAction: { [Player]: number } = {}
 
 local function clearTrail(character: Model)
 	local hrp = character:FindFirstChild("HumanoidRootPart")
@@ -28,6 +33,9 @@ function ShopService.ApplyTrail(player: Player)
 	end
 	clearTrail(character)
 	local def = Cosmetics.ById[data.EquippedTrail]
+	if def and def.VipOnly and not DataService.IsVIP(player) then
+		def = nil
+	end
 	local hrp = character:FindFirstChild("HumanoidRootPart")
 	if not def or not hrp then
 		return
@@ -57,17 +65,28 @@ function ShopService.ApplyTrail(player: Player)
 end
 
 local function onAction(player: Player, action: any, id: any)
-	if typeof(action) ~= "string" or typeof(id) ~= "string" then
+	if typeof(action) ~= "string" or typeof(id) ~= "string" or #id > 40 then
 		return
 	end
 	local data = DataService.Get(player)
 	if not data then
 		return
 	end
+	if action == "Equip" or action == "BuyWeapon" or action == "EquipWeapon" then
+		local now = os.clock()
+		if lastAction[player] and now - lastAction[player] < ACTION_COOLDOWN then
+			return
+		end
+		lastAction[player] = now
+	end
 
 	if action == "Buy" then
 		local def = Cosmetics.ById[id]
 		if not def or data.OwnedTrails[id] then
+			return
+		end
+		if def.VipOnly then
+			Remotes.Toast:FireClient(player, def.Name .. " is a VIP perk", "bad")
 			return
 		end
 		if data.Coins < def.Price then
@@ -81,11 +100,44 @@ local function onAction(player: Player, action: any, id: any)
 	elseif action == "Equip" then
 		if id == "" then
 			data.EquippedTrail = ""
-		elseif data.OwnedTrails[id] then
+		elseif DataService.OwnsTrail(player, id) then
 			data.EquippedTrail = id
 		else
+			Remotes.Toast:FireClient(player, "You do not own that trail yet", "bad")
 			return
 		end
+	elseif action == "BuyWeapon" then
+		local def = Weapons.Defs[id]
+		if not def or DataService.OwnsWeapon(player, id) then
+			return
+		end
+		if def.VipOnly then
+			Remotes.Toast:FireClient(player, def.Name .. " is a VIP perk", "bad")
+			return
+		end
+		if not def.CoinPrice then
+			return
+		end
+		if data.Coins < def.CoinPrice then
+			Remotes.Toast:FireClient(player, "Not enough coins for " .. def.Name, "bad")
+			return
+		end
+		data.Coins -= def.CoinPrice
+		data.OwnedWeapons[id] = true
+		data.EquippedWeapon = id
+		Remotes.Toast:FireClient(player, def.Name .. " unlocked!", "good")
+		DataService.Push(player)
+		ClassService.GiveTool(player)
+		return
+	elseif action == "EquipWeapon" then
+		if not Weapons.Defs[id] or not DataService.OwnsWeapon(player, id) then
+			Remotes.Toast:FireClient(player, "You do not own that weapon yet", "bad")
+			return
+		end
+		data.EquippedWeapon = id
+		DataService.Push(player)
+		ClassService.GiveTool(player)
+		return
 	else
 		return
 	end
@@ -96,6 +148,10 @@ end
 
 function ShopService.Init()
 	Remotes.ShopAction.OnServerEvent:Connect(onAction)
+	DataService.VipChanged.Event:Connect(function(player: Player)
+		ClassService.GiveTool(player)
+		ShopService.ApplyTrail(player)
+	end)
 
 	local function hook(player: Player)
 		player.CharacterAdded:Connect(function()
@@ -113,6 +169,9 @@ function ShopService.Init()
 	for _, player in ipairs(Players:GetPlayers()) do
 		hook(player)
 	end
+	Players.PlayerRemoving:Connect(function(player)
+		lastAction[player] = nil
+	end)
 end
 
 return ShopService

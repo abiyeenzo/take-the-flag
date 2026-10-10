@@ -4,14 +4,15 @@ local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Actors = require(script.Parent.Actors)
 
 local FlagService = {}
 
 FlagService.Active = false
-FlagService.PickedUp = Instance.new("BindableEvent") -- (player, flagTeam)
-FlagService.Dropped = Instance.new("BindableEvent") -- (player, flagTeam)
-FlagService.Returned = Instance.new("BindableEvent") -- (player or nil, flagTeam)
-FlagService.Captured = Instance.new("BindableEvent") -- (player, flagTeam)
+FlagService.PickedUp = Instance.new("BindableEvent") -- (actor, flagTeam)
+FlagService.Dropped = Instance.new("BindableEvent") -- (actor, flagTeam)
+FlagService.Returned = Instance.new("BindableEvent") -- (actor or nil, flagTeam)
+FlagService.Captured = Instance.new("BindableEvent") -- (actor, flagTeam)
 
 type Flag = {
 	Team: string,
@@ -20,7 +21,8 @@ type Flag = {
 	Pole: Part,
 	Banner: Part,
 	State: string,
-	Carrier: Player?,
+	Carrier: any,
+	DropPosition: Vector3?,
 	Token: number,
 	Highlight: Highlight?,
 	DiedConnection: RBXScriptConnection?,
@@ -29,15 +31,23 @@ type Flag = {
 }
 
 local flags: { [string]: Flag } = {}
-local carrying: { [Player]: Flag } = {}
-local lastWarning: { [Player]: number } = {}
+local carrying: { [any]: Flag } = {}
+local lastWarning: { [any]: number } = setmetatable({}, { __mode = "k" }) :: any
 local triggers: { [string]: Part } = {}
 
-local function teamOf(player: Player): string?
-	return player.Team and player.Team.Name or nil
+local function teamOf(actor: any): string?
+	return Actors.TeamName(actor)
 end
 
-local function isAlive(player: Player): (Humanoid?, BasePart?)
+local function actorFromPart(part: BasePart): any
+	local parent = part.Parent
+	if not parent then
+		return nil
+	end
+	return Actors.FromCharacter(parent)
+end
+
+local function isAlive(player: any): (Humanoid?, BasePart?)
 	local character = player.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 	local hrp = character and character:FindFirstChild("HumanoidRootPart")
@@ -52,7 +62,7 @@ local function layout(flag: Flag, cf: CFrame)
 	flag.Banner.CFrame = cf * CFrame.new(0.1, 6.6, 2.7)
 end
 
-local function setState(flag: Flag, state: string, carrier: Player?)
+local function setState(flag: Flag, state: string, carrier: any)
 	flag.State = state
 	flag.Carrier = carrier
 	Workspace:SetAttribute(flag.Team .. "Flag", state)
@@ -127,7 +137,7 @@ local function anchorFlag(flag: Flag)
 	end
 end
 
-local function returnHome(flag: Flag, byPlayer: Player?, silent: boolean?)
+local function returnHome(flag: Flag, byPlayer: any, silent: boolean?)
 	flag.Token += 1
 	cleanupCarry(flag)
 	anchorFlag(flag)
@@ -155,6 +165,7 @@ local function drop(flag: Flag)
 	end
 	local result = Workspace:Raycast(position, Vector3.new(0, -60, 0), params)
 	local ground = result and result.Position or position
+	flag.DropPosition = ground
 
 	anchorFlag(flag)
 	layout(flag, CFrame.new(ground))
@@ -170,7 +181,7 @@ local function drop(flag: Flag)
 	end)
 end
 
-local function pickup(flag: Flag, player: Player)
+local function pickup(flag: Flag, player: any)
 	local humanoid, hrp = isAlive(player)
 	if not humanoid or not hrp then
 		return
@@ -220,7 +231,7 @@ local function onFlagTouched(flag: Flag, hit: BasePart)
 	if not hit.Parent or not FlagService.Active or flag.State == "Carried" then
 		return
 	end
-	local player = Players:GetPlayerFromCharacter(hit.Parent)
+	local player = actorFromPart(hit)
 	if not player or not isAlive(player) then
 		return
 	end
@@ -242,7 +253,7 @@ local function onPadTouched(padTeam: string, hit: BasePart)
 	if not hit.Parent or not FlagService.Active then
 		return
 	end
-	local player = Players:GetPlayerFromCharacter(hit.Parent)
+	local player = actorFromPart(hit)
 	if not player or teamOf(player) ~= padTeam then
 		return
 	end
@@ -256,7 +267,9 @@ local function onPadTouched(padTeam: string, hit: BasePart)
 		local now = os.clock()
 		if not lastWarning[player] or now - lastWarning[player] > 3 then
 			lastWarning[player] = now
-			Remotes.Toast:FireClient(player, "Your flag must be at base to capture. Return it first!", "bad")
+			if not Actors.IsBot(player) then
+				Remotes.Toast:FireClient(player, "Your flag must be at base to capture. Return it first!", "bad")
+			end
 		end
 		return
 	end
@@ -265,8 +278,34 @@ local function onPadTouched(padTeam: string, hit: BasePart)
 	FlagService.Captured:Fire(player, enemyFlag.Team)
 end
 
-function FlagService.IsCarrier(player: Player): boolean
-	return carrying[player] ~= nil
+function FlagService.IsCarrier(actor: any): boolean
+	return carrying[actor] ~= nil
+end
+
+-- Where a team's flag is right now, for bots and UI helpers.
+function FlagService.GetFlagInfo(teamName: string): { State: string, Home: Vector3, Position: Vector3, Carrier: any }?
+	local flag = flags[teamName]
+	if not flag then
+		return nil
+	end
+	local position = flag.Home
+	if flag.State == "Dropped" and flag.DropPosition then
+		position = flag.DropPosition
+	elseif flag.State == "Carried" and flag.Carrier then
+		local _, hrp = isAlive(flag.Carrier)
+		if hrp then
+			position = hrp.Position
+		end
+	end
+	return { State = flag.State, Home = flag.Home, Position = position, Carrier = flag.Carrier }
+end
+
+-- Used before an actor is removed from the match so the flag does not stay stuck on them.
+function FlagService.DropIfCarrying(actor: any)
+	local flag = carrying[actor]
+	if flag then
+		drop(flag)
+	end
 end
 
 function FlagService.Reset()

@@ -317,6 +317,217 @@ local function buildJumpPads(arena: Folder)
 	end)
 end
 
+local LOBBY_SIZE = 90
+local lobbySign: TextLabel? = nil
+
+local function buildArch(folder: Folder, center: Vector3, color: Color3, label: string)
+	local pillarSize = Vector3.new(3, 22, 3)
+	for _, side in ipairs({ -1, 1 }) do
+		newPart({
+			Name = label .. "Pillar",
+			Size = pillarSize,
+			Position = center + Vector3.new(side * 9, 11, 0),
+			Color = Color3.fromRGB(34, 40, 60),
+		}, folder)
+		neon({
+			Name = label .. "PillarGlow",
+			Size = Vector3.new(0.6, 20, 3.2),
+			Position = center + Vector3.new(side * 7.4, 11, 0),
+			Color = color,
+		}, folder)
+	end
+	newPart({
+		Name = label .. "Beam",
+		Size = Vector3.new(21, 3, 3),
+		Position = center + Vector3.new(0, 23.5, 0),
+		Color = Color3.fromRGB(34, 40, 60),
+	}, folder)
+	neon({
+		Name = label .. "BeamGlow",
+		Size = Vector3.new(21, 0.8, 3.2),
+		Position = center + Vector3.new(0, 21.8, 0),
+		Color = color,
+	}, folder)
+	local portal = neon({
+		Name = label .. "Portal",
+		Size = Vector3.new(14, 20, 0.6),
+		Position = center + Vector3.new(0, 10.5, 0),
+		Color = color,
+		Transparency = 0.7,
+	}, folder)
+	local light = Instance.new("PointLight")
+	light.Color = color
+	light.Range = 34
+	light.Brightness = 2
+	light.Parent = portal
+end
+
+local function buildLobby(): Folder
+	local old = Workspace:FindFirstChild("Lobby")
+	if old then
+		old:Destroy()
+	end
+	local folder = Instance.new("Folder")
+	folder.Name = "Lobby"
+
+	local c = Config.LobbyCenter
+	local half = LOBBY_SIZE / 2
+
+	newPart({
+		Name = "LobbyFloor",
+		Size = Vector3.new(LOBBY_SIZE, 2, LOBBY_SIZE),
+		Position = c + Vector3.new(0, -1, 0),
+		Color = Color3.fromRGB(34, 44, 66),
+	}, folder)
+
+	-- Glowing ring and soft lines on the floor
+	neon({
+		Name = "LobbyRing",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.2, 40, 40),
+		CFrame = CFrame.new(c + Vector3.new(0, 0.1, -4)) * CFrame.Angles(0, 0, math.rad(90)),
+		Color = Color3.fromRGB(150, 200, 255),
+		Transparency = 0.6,
+	}, folder)
+	neon({
+		Name = "LobbyRingInner",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.2, 22, 22),
+		CFrame = CFrame.new(c + Vector3.new(0, 0.12, -4)) * CFrame.Angles(0, 0, math.rad(90)),
+		Color = Color3.fromRGB(150, 200, 255),
+		Transparency = 0.75,
+	}, folder)
+	for i = -1, 1, 2 do
+		neon({
+			Name = "LobbyStripe",
+			Size = Vector3.new(1, 0.2, LOBBY_SIZE - 10),
+			Position = c + Vector3.new(i * 36, 0.1, 0),
+			Color = i < 0 and Config.TeamColor("Red") or Config.TeamColor("Blue"),
+			Transparency = 0.45,
+		}, folder)
+	end
+
+	-- Low walls with a soft glowing top
+	local wallHeight = 4
+	local walls = {
+		{ Vector3.new(LOBBY_SIZE + 2, wallHeight, 2), Vector3.new(0, 0, half + 1) },
+		{ Vector3.new(LOBBY_SIZE + 2, wallHeight, 2), Vector3.new(0, 0, -half - 1) },
+		{ Vector3.new(2, wallHeight, LOBBY_SIZE), Vector3.new(half + 1, 0, 0) },
+		{ Vector3.new(2, wallHeight, LOBBY_SIZE), Vector3.new(-half - 1, 0, 0) },
+	}
+	for i, wall in ipairs(walls) do
+		newPart({
+			Name = "LobbyWall" .. i,
+			Size = wall[1],
+			Position = c + wall[2] + Vector3.new(0, wallHeight / 2, 0),
+			Color = Color3.fromRGB(40, 50, 76),
+		}, folder)
+		neon({
+			Name = "LobbyWallGlow" .. i,
+			Size = wall[1] + Vector3.new(0.2, 0.4 - wallHeight, 0.2),
+			Position = c + wall[2] + Vector3.new(0, wallHeight + 0.1, 0),
+			Color = Color3.fromRGB(140, 190, 255),
+			Transparency = 0.2,
+		}, folder)
+		-- Invisible tall barrier so nobody leaves the lobby
+		newPart({
+			Name = "LobbyBarrier" .. i,
+			Size = Vector3.new(wall[1].X, 100, wall[1].Z),
+			Position = c + wall[2] + Vector3.new(0, 50, 0),
+			Transparency = 1,
+			CanQuery = false,
+		}, folder)
+	end
+	newPart({
+		Name = "LobbyCeiling",
+		Size = Vector3.new(LOBBY_SIZE + 4, 2, LOBBY_SIZE + 4),
+		Position = c + Vector3.new(0, 101, 0),
+		Transparency = 1,
+		CanQuery = false,
+	}, folder)
+
+	-- Team portal arches at the back of the lobby
+	buildArch(folder, c + Vector3.new(-30, 0, half - 4), Config.TeamColor("Red"), "Red")
+	buildArch(folder, c + Vector3.new(30, 0, half - 4), Config.TeamColor("Blue"), "Blue")
+
+	-- Big countdown sign between the arches
+	for _, side in ipairs({ -1, 1 }) do
+		newPart({
+			Name = "SignPost",
+			Size = Vector3.new(2, 20, 2),
+			Position = c + Vector3.new(side * 17, 10, half - 4),
+			Color = Color3.fromRGB(34, 40, 60),
+		}, folder)
+	end
+	local board = newPart({
+		Name = "LobbySign",
+		Size = Vector3.new(40, 12, 1),
+		Position = c + Vector3.new(0, 20, half - 4),
+		Color = Color3.fromRGB(14, 18, 30),
+	}, folder)
+	neon({
+		Name = "LobbySignFrame",
+		Size = Vector3.new(41, 13, 0.8),
+		Position = c + Vector3.new(0, 20, half - 3.6),
+		Color = Color3.fromRGB(150, 200, 255),
+		Transparency = 0.3,
+	}, folder)
+	local gui = Instance.new("SurfaceGui")
+	gui.Name = "SignGui"
+	gui.Face = Enum.NormalId.Front
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 40
+	gui.LightInfluence = 0
+	gui.Brightness = 1.5
+	gui.Parent = board
+	local label = Instance.new("TextLabel")
+	label.Name = "Text"
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.GothamBlack
+	label.TextScaled = true
+	label.TextColor3 = Color3.fromRGB(235, 245, 255)
+	label.Text = "Waiting for players"
+	label.Parent = gui
+	local padding = Instance.new("UIPadding")
+	padding.PaddingLeft = UDim.new(0, 30)
+	padding.PaddingRight = UDim.new(0, 30)
+	padding.PaddingTop = UDim.new(0, 40)
+	padding.PaddingBottom = UDim.new(0, 40)
+	padding.Parent = label
+	lobbySign = label
+
+	-- A few glowing pillars of light around the floor
+	for _, spot in ipairs({ { -38, -38 }, { 38, -38 }, { -38, 38 }, { 38, 38 } }) do
+		local post = neon({
+			Name = "LobbyLamp",
+			Size = Vector3.new(1.4, 12, 1.4),
+			Position = c + Vector3.new(spot[1], 6, spot[2]),
+			Color = Color3.fromRGB(150, 220, 255),
+			Transparency = 0.2,
+		}, folder)
+		local light = Instance.new("PointLight")
+		light.Color = Color3.fromRGB(150, 220, 255)
+		light.Range = 36
+		light.Brightness = 1.5
+		light.Parent = post
+	end
+
+	folder.Parent = Workspace
+	return folder
+end
+
+function MapBuilder.SetLobbySign(text: string)
+	if lobbySign then
+		lobbySign.Text = text
+	end
+end
+
+function MapBuilder.RandomLobbyPoint(): Vector3
+	local c = Config.LobbyCenter
+	return c + Vector3.new(math.random(-32, 32) + math.random(), 4, math.random(-30, 22) + math.random())
+end
+
 function MapBuilder.Build()
 	setupLighting()
 
@@ -333,8 +544,10 @@ function MapBuilder.Build()
 	info.Blue = buildBase(arena, Config.Teams[2], 1)
 	buildCover(arena)
 	buildJumpPads(arena)
+	buildLobby()
 
 	arena.Parent = Workspace
+	info.Lobby = { Center = Config.LobbyCenter }
 	return info
 end
 

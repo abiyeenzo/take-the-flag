@@ -4,9 +4,12 @@ local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Actors = require(script.Parent.Actors)
+local BotService = require(script.Parent.BotService)
 local CombatService = require(script.Parent.CombatService)
 local DataService = require(script.Parent.DataService)
 local FlagService = require(script.Parent.FlagService)
+local MapBuilder = require(script.Parent.MapBuilder)
 local TeamService = require(script.Parent.TeamService)
 
 local RoundService = {}
@@ -15,7 +18,7 @@ type Stats = { Name: string, Captures: number, Kills: number, Returns: number }
 
 local scores = { Red = 0, Blue = 0 }
 local stats: { [number]: Stats } = {}
-local streaks: { [Player]: number } = {}
+local streaks: { [any]: number } = {}
 local winner: string? = nil
 local overtime = false
 local participants: { [number]: boolean } = {}
@@ -29,20 +32,28 @@ local function announce(text: string, team: string?)
 	Remotes.Announce:FireAllClients(text, team)
 end
 
-local function statsOf(player: Player): Stats
-	local entry = stats[player.UserId]
+local function humanCount(): number
+	return #Actors.Humans()
+end
+
+local function statsOf(actor: any): Stats
+	local entry = stats[actor.UserId]
 	if not entry then
-		entry = { Name = player.Name, Captures = 0, Kills = 0, Returns = 0 }
-		stats[player.UserId] = entry
+		entry = { Name = actor.Name, Captures = 0, Kills = 0, Returns = 0 }
+		stats[actor.UserId] = entry
 	end
 	return entry
 end
 
-local function reward(player: Player, kind: string, label: string)
+-- Coins and XP are only for humans. Bots earn nothing.
+local function reward(actor: any, kind: string, label: string)
+	if Actors.IsBot(actor) then
+		return
+	end
 	local amount = Config.Rewards[kind]
-	DataService.AddCoins(player, amount.Coins)
-	DataService.AddXP(player, amount.XP)
-	Remotes.Toast:FireClient(player, ("+%d coins  %s"):format(amount.Coins, label), "good")
+	DataService.AddCoins(actor, amount.Coins)
+	DataService.AddXP(actor, amount.XP)
+	Remotes.Toast:FireClient(actor, ("+%d coins  %s"):format(amount.Coins, label), "good")
 end
 
 local function resetScores()
@@ -62,67 +73,74 @@ local function isPlaying(): boolean
 end
 
 local function connectEvents()
-	FlagService.PickedUp.Event:Connect(function(player: Player, flagTeam: string)
+	FlagService.PickedUp.Event:Connect(function(actor: any, flagTeam: string)
 		if isPlaying() then
-			announce(player.Name .. " grabbed the " .. flagTeam .. " flag!", player.Team and player.Team.Name)
+			announce(actor.Name .. " grabbed the " .. flagTeam .. " flag!", Actors.TeamName(actor))
 		end
 	end)
 
-	FlagService.Dropped.Event:Connect(function(player: Player, flagTeam: string)
+	FlagService.Dropped.Event:Connect(function(actor: any, flagTeam: string)
 		if isPlaying() then
-			announce(player.Name .. " dropped the " .. flagTeam .. " flag", nil)
+			announce(actor.Name .. " dropped the " .. flagTeam .. " flag", nil)
 		end
 	end)
 
-	FlagService.Returned.Event:Connect(function(player: Player?, flagTeam: string)
+	FlagService.Returned.Event:Connect(function(actor: any, flagTeam: string)
 		if not isPlaying() then
 			return
 		end
-		if player then
-			statsOf(player).Returns += 1
-			reward(player, "Return", "Flag returned")
-			announce(player.Name .. " returned the " .. flagTeam .. " flag", flagTeam)
+		if actor then
+			statsOf(actor).Returns += 1
+			reward(actor, "Return", "Flag returned")
+			announce(actor.Name .. " returned the " .. flagTeam .. " flag", flagTeam)
 		else
 			announce("The " .. flagTeam .. " flag is back at base", flagTeam)
 		end
 	end)
 
-	FlagService.Captured.Event:Connect(function(player: Player, flagTeam: string)
+	FlagService.Captured.Event:Connect(function(actor: any, flagTeam: string)
 		if not isPlaying() or winner then
 			return
 		end
-		local team = player.Team and player.Team.Name
+		local team = Actors.TeamName(actor)
 		if not team then
 			return
 		end
 		scores[team] += 1
 		Workspace:SetAttribute(team .. "Score", scores[team])
-		statsOf(player).Captures += 1
-		DataService.Increment(player, "Captures", 1)
-		reward(player, "Capture", "Flag captured")
-		announce(player.Name .. " captured the " .. flagTeam .. " flag!", team)
+		statsOf(actor).Captures += 1
+		if not Actors.IsBot(actor) then
+			DataService.Increment(actor, "Captures", 1)
+		end
+		reward(actor, "Capture", "Flag captured")
+		announce(actor.Name .. " captured the " .. flagTeam .. " flag!", team)
 
 		if scores[team] >= Config.CapsToWin or overtime then
 			winner = team
 		end
 	end)
 
-	CombatService.Killed.Event:Connect(function(killer: Player?, victim: Player)
+	CombatService.Killed.Event:Connect(function(killer: any, victim: any)
 		streaks[victim] = 0
 		if not killer or not isPlaying() then
 			return
 		end
 		statsOf(killer).Kills += 1
-		DataService.Increment(killer, "Kills", 1)
-		reward(killer, "Kill", "Eliminated " .. victim.Name)
+		if not Actors.IsBot(killer) then
+			DataService.Increment(killer, "Kills", 1)
+		end
+		reward(killer, Actors.IsBot(victim) and "BotKill" or "Kill", "Eliminated " .. victim.Name)
 
 		streaks[killer] = (streaks[killer] or 0) + 1
 		local streak = streaks[killer]
 		if streak >= 3 and streak % 2 == 1 then
-			local bonus = Config.Rewards.StreakBonus
-			DataService.AddCoins(killer, bonus.Coins * streak)
-			DataService.AddXP(killer, bonus.XP * streak)
-			announce(killer.Name .. " is on a " .. streak .. " kill streak!", killer.Team and killer.Team.Name)
+			if not Actors.IsBot(killer) then
+				local bonus = Config.Rewards.StreakBonus
+				local steps = math.min(streak, 5)
+				DataService.AddCoins(killer, bonus.Coins * steps)
+				DataService.AddXP(killer, bonus.XP * steps)
+			end
+			announce(killer.Name .. " is on a " .. streak .. " tag streak!", Actors.TeamName(killer))
 		end
 	end)
 
@@ -142,28 +160,60 @@ local function bestPlayer(): (string?, number)
 	return bestName, bestScore
 end
 
-local function playRound()
-	resetScores()
-	TeamService.Rebalance()
-	FlagService.Reset()
-	participants = {}
-	local participantCount = 0
-	for _, player in ipairs(Players:GetPlayers()) do
-		participants[player.UserId] = true
-		participantCount += 1
-	end
-	for _, player in ipairs(Players:GetPlayers()) do
+local function setSign(text: string)
+	MapBuilder.SetLobbySign(text)
+end
+
+local function formatClock(seconds: number): string
+	seconds = math.max(0, math.ceil(seconds))
+	return ("%d:%02d"):format(seconds // 60, seconds % 60)
+end
+
+local function loadHumans()
+	for _, player in ipairs(Actors.Humans()) do
 		task.spawn(function()
 			player:LoadCharacter()
 		end)
 	end
+end
+
+-- Runs the 3,2,1 countdown. Returns false if everybody left.
+local function countdown(): boolean
+	for n = Config.CountdownSeconds, 1, -1 do
+		Remotes.Countdown:FireAllClients(n)
+		setSign("Starting in " .. n)
+		task.wait(1)
+		if humanCount() == 0 then
+			return false
+		end
+	end
+	return true
+end
+
+local function playRound()
+	resetScores()
+	setSign("Go!")
+	Remotes.Countdown:FireAllClients("GO")
+	Remotes.Flash:FireAllClients()
+
+	-- Playing is set before respawning so characters appear at their team base
+	setState("Playing", Config.RoundTime)
+	local deadline = os.clock() + Config.RoundTime
+
+	TeamService.Rebalance()
+	FlagService.Reset()
+	participants = {}
+	for _, actor in ipairs(Actors.All()) do
+		participants[actor.UserId] = true
+	end
+	loadHumans()
+	BotService.EnterArena()
 	task.wait(1)
 
 	FlagService.Active = true
-	setState("Playing", Config.RoundTime)
+	setSign("Match in progress")
 	announce("Round start! First team to " .. Config.CapsToWin .. " captures wins", nil)
 
-	local deadline = os.clock() + Config.RoundTime
 	while not winner do
 		if os.clock() >= deadline then
 			if not overtime and scores.Red == scores.Blue then
@@ -176,7 +226,7 @@ local function playRound()
 				break
 			end
 		end
-		if #Players:GetPlayers() == 0 then
+		if humanCount() == 0 then
 			break
 		end
 		task.wait(0.25)
@@ -194,11 +244,13 @@ local function playRound()
 		end
 	end
 
-	for _, player in ipairs(Players:GetPlayers()) do
-		-- late joiners and solo matches do not earn the match bonuses
-		if participantCount >= 2 and (participants[player.UserId] or stats[player.UserId]) then
+	for _, player in ipairs(Actors.Humans()) do
+		-- only players who were there at the start and actually did something earn the bonuses
+		local entry = stats[player.UserId]
+		local active = entry ~= nil and (entry.Captures + entry.Kills + entry.Returns) > 0
+		if participants[player.UserId] and active then
 			reward(player, "Play", "Match played")
-			if player.Team and player.Team.Name == result then
+			if Actors.TeamName(player) == result then
 				DataService.Increment(player, "Wins", 1)
 				reward(player, "Win", "Victory")
 			end
@@ -207,6 +259,7 @@ local function playRound()
 
 	local mvpName, mvpScore = bestPlayer()
 	setState("Ended", Config.EndScreenTime)
+	setSign("Great match!")
 	Remotes.RoundEnd:FireAllClients({
 		Winner = result,
 		Red = scores.Red,
@@ -217,6 +270,12 @@ local function playRound()
 	})
 	task.wait(Config.EndScreenTime)
 	FlagService.Reset()
+
+	-- back to the lobby: humans respawn there, bots gather too
+	setState("Intermission", Config.IntermissionTime)
+	loadHumans()
+	BotService.Sync()
+	BotService.GatherInLobby()
 end
 
 function RoundService.Run()
@@ -226,19 +285,31 @@ function RoundService.Run()
 	Workspace:SetAttribute("BlueScore", 0)
 
 	while true do
-		setState("Waiting")
-		while #Players:GetPlayers() < Config.MinPlayers do
-			task.wait(1)
+		if humanCount() < math.max(1, Config.MinPlayers) then
+			setState("Waiting")
+			setSign("Waiting for players")
+			BotService.RemoveAll()
+			while humanCount() < math.max(1, Config.MinPlayers) do
+				task.wait(1)
+			end
 		end
 
-		setState("Intermission", Config.IntermissionTime)
-		local endsAt = os.clock() + Config.IntermissionTime
-		while os.clock() < endsAt and #Players:GetPlayers() >= Config.MinPlayers do
+		if Workspace:GetAttribute("RoundState") ~= "Intermission" then
+			setState("Intermission", Config.IntermissionTime)
+			BotService.Sync()
+			BotService.GatherInLobby()
+		end
+
+		local timerEnd = Workspace:GetAttribute("TimerEnd") or 0
+		while Workspace:GetServerTimeNow() < timerEnd and humanCount() >= Config.MinPlayers do
+			setSign("Match starts in " .. formatClock(timerEnd - Workspace:GetServerTimeNow()))
 			task.wait(0.5)
 		end
 
-		if #Players:GetPlayers() >= Config.MinPlayers then
+		if humanCount() >= Config.MinPlayers and countdown() then
 			playRound()
+		elseif humanCount() < Config.MinPlayers then
+			Workspace:SetAttribute("RoundState", "Waiting")
 		end
 	end
 end

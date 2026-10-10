@@ -14,7 +14,10 @@ local EVENTS = {
 	"SelectClass", -- client -> server: class id
 	"UseAbility", -- client -> server
 	"AbilityFx", -- server -> client: effect name
-	"ShopAction", -- client -> server: action, id
+	"ShopAction", -- client -> server: action, id (Buy, Equip, BuyWeapon, EquipWeapon)
+	"Purchase", -- client -> server: kind ("Pass" or "Product"), key from Monetization
+	"Countdown", -- server -> clients: number (3,2,1) or "GO"
+	"Flash", -- server -> clients: white screen flash when entering the arena
 }
 
 local folder

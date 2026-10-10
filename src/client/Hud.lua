@@ -8,6 +8,7 @@ local Workspace = game:GetService("Workspace")
 local Classes = require(ReplicatedStorage.Shared.Classes)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Settings = require(script.Parent.Settings)
 local Store = require(script.Parent.Store)
 local UIKit = require(script.Parent.UIKit)
 
@@ -36,7 +37,7 @@ local function fadeOut(instances: { Instance }, delay: number, duration: number)
 	end)
 end
 
-local function buildScoreboard(gui: ScreenGui)
+local function buildScoreboard(gui: GuiObject)
 	local panel = New("Frame", {
 		Name = "Scoreboard",
 		AnchorPoint = Vector2.new(0.5, 0),
@@ -97,17 +98,18 @@ local function buildScoreboard(gui: ScreenGui)
 	return { Red = redScore, Blue = blueScore, Timer = timer, State = sub }
 end
 
-local function buildFlagChips(gui: ScreenGui)
+local function buildFlagChips(gui: GuiObject)
 	local chips = {}
 	local function chip(teamName: string, xOffset: number)
 		local label = Label({
 			Name = teamName .. "Chip",
 			AnchorPoint = Vector2.new(0.5, 0),
 			Position = UDim2.new(0.5, xOffset, 0, 80),
-			Size = UDim2.fromOffset(214, 24),
+			Size = UDim2.fromOffset(214, 26),
 			BackgroundTransparency = 0.25,
 			BackgroundColor3 = Colors.Panel,
-			TextSize = 13,
+			TextSize = 14,
+			TextTruncate = Enum.TextTruncate.AtEnd,
 			Parent = gui,
 		})
 		UIKit.Corner(6).Parent = label
@@ -119,7 +121,7 @@ local function buildFlagChips(gui: ScreenGui)
 	return chips
 end
 
-local function buildProfileBar(gui: ScreenGui)
+local function buildProfileBar(gui: GuiObject)
 	local bar = New("Frame", {
 		Name = "ProfileBar",
 		AnchorPoint = Vector2.new(0, 1),
@@ -136,19 +138,25 @@ local function buildProfileBar(gui: ScreenGui)
 		BackgroundColor3 = Colors.Level,
 		Parent = bar,
 	}, { UIKit.Corner(10) })
-	local level = Label({ Size = UDim2.fromScale(1, 1), Text = "1", TextSize = 24, Parent = badge })
+	local level = Label({
+		Size = UDim2.new(1, 0, 1, -10),
+		Position = UDim2.fromOffset(0, 12),
+		Text = "1",
+		TextSize = 24,
+		Parent = badge,
+	})
 	Label({
-		Size = UDim2.new(1, 0, 0, 12),
-		Position = UDim2.fromOffset(0, 2),
+		Size = UDim2.new(1, 0, 0, 14),
+		Position = UDim2.fromOffset(0, 1),
 		Text = "LV",
-		TextSize = 10,
+		TextSize = 13,
 		TextTransparency = 0.3,
 		Parent = badge,
 	})
 
 	local track = New("Frame", {
 		Size = UDim2.new(1, -70, 0, 10),
-		Position = UDim2.fromOffset(62, 12),
+		Position = UDim2.fromOffset(62, 9),
 		BackgroundColor3 = Colors.PanelLight,
 		Parent = bar,
 	}, { UIKit.Corner(5) })
@@ -158,16 +166,16 @@ local function buildProfileBar(gui: ScreenGui)
 		Parent = track,
 	}, { UIKit.Corner(5) })
 	local xp = Label({
-		Size = UDim2.new(1, -70, 0, 14),
-		Position = UDim2.fromOffset(62, 25),
+		Size = UDim2.new(1, -70, 0, 16),
+		Position = UDim2.fromOffset(62, 22),
 		Text = "0 / 100 XP",
-		TextSize = 11,
+		TextSize = 13,
 		TextColor3 = Colors.Muted,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Parent = bar,
 	})
 	local coins = Label({
-		Size = UDim2.new(1, -70, 0, 16),
+		Size = UDim2.new(1, -70, 0, 18),
 		Position = UDim2.fromOffset(62, 39),
 		Text = "0 coins",
 		TextSize = 14,
@@ -176,7 +184,23 @@ local function buildProfileBar(gui: ScreenGui)
 		Parent = bar,
 	})
 
+	local vip = Label({
+		Name = "VipBadge",
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -8, 0, 8),
+		Size = UDim2.fromOffset(40, 20),
+		BackgroundColor3 = Colors.Accent,
+		BackgroundTransparency = 0,
+		Text = "VIP",
+		TextSize = 13,
+		TextColor3 = Color3.fromRGB(30, 24, 6),
+		Visible = false,
+		Parent = bar,
+	})
+	UIKit.Corner(6).Parent = vip
+
 	local function render(profile)
+		vip.Visible = profile.VIP == true
 		level.Text = tostring(profile.Level)
 		fill:TweenSize(
 			UDim2.fromScale(math.clamp(profile.XP / profile.XpNeeded, 0, 1), 1),
@@ -194,7 +218,7 @@ local function buildProfileBar(gui: ScreenGui)
 	end
 end
 
-local function buildFeeds(gui: ScreenGui)
+local function buildFeeds(gui: GuiObject)
 	local feed = New("Frame", {
 		Name = "Feed",
 		AnchorPoint = Vector2.new(1, 0),
@@ -274,7 +298,7 @@ local function buildFeeds(gui: ScreenGui)
 	end)
 end
 
-local function buildAbilityButton(gui: ScreenGui)
+local function buildAbilityButton(gui: GuiObject)
 	local button = New("TextButton", {
 		Name = "Ability",
 		AnchorPoint = Vector2.new(1, 1),
@@ -291,7 +315,7 @@ local function buildAbilityButton(gui: ScreenGui)
 		Size = UDim2.new(1, 0, 0, 20),
 		Position = UDim2.new(0, 0, 0.5, -20),
 		Text = "",
-		TextSize = 12,
+		TextSize = 13,
 		Parent = button,
 	})
 	local key = Label({
@@ -322,11 +346,11 @@ local function buildAbilityButton(gui: ScreenGui)
 		local remaining = (player:GetAttribute("AbilityReadyAt") or 0) - Workspace:GetServerTimeNow()
 		cooldown.Visible = remaining > 0
 		counter.Text = remaining > 0 and tostring(math.ceil(remaining)) or ""
-		key.Visible = remaining <= 0
+		key.Visible = remaining <= 0 and not UserInputService.TouchEnabled
 	end
 end
 
-local function buildToolbar(gui: ScreenGui)
+local function buildToolbar(gui: GuiObject)
 	local bar = New("Frame", {
 		Name = "Toolbar",
 		AnchorPoint = Vector2.new(0, 1),
@@ -348,11 +372,16 @@ local function buildToolbar(gui: ScreenGui)
 		UIKit.Stroke(Colors.Stroke, 1.5, 0.3).Parent = b
 		Hud.Buttons[name] = b
 	end
-	button("Classes", "CLASSES  [C]")
-	button("Shop", "SHOP  [B]")
+	if UserInputService.TouchEnabled then
+		button("Classes", "CLASSES")
+		button("Shop", "SHOP")
+	else
+		button("Classes", "CLASSES  [C]")
+		button("Shop", "SHOP  [B]")
+	end
 end
 
-local function buildHitMarker(gui: ScreenGui)
+local function buildHitMarker(gui: GuiObject)
 	local marker = New("Frame", {
 		Name = "HitMarker",
 		AnchorPoint = Vector2.new(0.5, 0.5),
@@ -395,7 +424,7 @@ local function buildHitMarker(gui: ScreenGui)
 	end)
 end
 
-local function buildEndScreen(gui: ScreenGui)
+local function buildEndScreen(gui: GuiObject)
 	local overlay = New("Frame", {
 		Name = "EndScreen",
 		Size = UDim2.fromScale(1, 1),
@@ -464,30 +493,101 @@ local function buildEndScreen(gui: ScreenGui)
 	end)
 end
 
-local function showHint(gui: ScreenGui)
+local function buildCountdown(gui: GuiObject)
+	local number = Label({
+		Name = "Countdown",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.4),
+		Size = UDim2.fromOffset(400, 200),
+		TextSize = 150,
+		TextStrokeTransparency = 0.3,
+		TextTransparency = 1,
+		TextStrokeColor3 = Color3.fromRGB(10, 12, 24),
+		ZIndex = 30,
+		Parent = gui,
+	})
+	local scale = New("UIScale", { Scale = 1, Parent = number })
+
+	local flash = New("Frame", {
+		Name = "Flash",
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		Active = false,
+		ZIndex = 40,
+		Parent = gui,
+	})
+
+	local token = 0
+	Remotes:WaitForChild("Countdown").OnClientEvent:Connect(function(value)
+		token += 1
+		local mine = token
+		local isGo = value == "GO"
+		number.Text = isGo and "GO!" or tostring(value)
+		number.TextColor3 = isGo and Colors.Good or Colors.Text
+		number.TextTransparency = 0
+		number.TextStrokeTransparency = 0.3
+		scale.Scale = 1.6
+		TweenService:Create(scale, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+		task.delay(isGo and 0.9 or 0.75, function()
+			if token == mine then
+				TweenService:Create(number, TweenInfo.new(0.25), { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
+			end
+		end)
+	end)
+
+	Remotes:WaitForChild("Flash").OnClientEvent:Connect(function()
+		-- Never a full white screen: start at 0.45 and fade quickly. Skipped entirely
+		-- when the player asked for fewer flashes.
+		if Settings.Get("ReduceFlashes") == true then
+			return
+		end
+		flash.BackgroundTransparency = 0.45
+		TweenService:Create(flash, TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { BackgroundTransparency = 1 }):Play()
+	end)
+end
+
+local function showHint(gui: GuiObject)
+	local controls = UserInputService.TouchEnabled
+			and "Tap to shoot  -  ability button  -  Classes and Shop buttons"
+		or "Click to shoot  -  Q ability  -  C classes  -  B shop"
 	local hint = Label({
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0, 112),
-		Size = UDim2.fromOffset(560, 44),
+		Size = UDim2.new(1, -24, 0, 48),
 		BackgroundColor3 = Colors.Panel,
 		BackgroundTransparency = 0.2,
-		Text = "Grab the enemy flag and bring it to your base.\nClick to shoot  -  Q ability  -  C classes  -  B shop",
+		Text = "Grab the enemy flag and bring it to your base.\n" .. controls,
 		TextSize = 14,
+		TextWrapped = true,
 		Parent = gui,
 	})
 	UIKit.Corner(8).Parent = hint
+	New("UISizeConstraint", { MaxSize = Vector2.new(560, 48), Parent = hint })
 	fadeOut({ hint }, 14, 1)
 end
 
 function Hud.Init()
-	local gui = New("ScreenGui", {
+	local screenGui = New("ScreenGui", {
 		Name = "TakeTheFlagHud",
 		ResetOnSpawn = false,
 		IgnoreGuiInset = false,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 		Parent = player:WaitForChild("PlayerGui"),
 	})
-	Hud.Gui = gui
+	Hud.Gui = screenGui
+
+	-- Everything lives in one full-size root so Settings can scale the HUD
+	-- without breaking edge anchoring (see Settings.updateScale)
+	local gui = New("Frame", {
+		Name = "Root",
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		Parent = screenGui,
+	})
+	Hud.Root = gui
 
 	local board = buildScoreboard(gui)
 	local chips = buildFlagChips(gui)
@@ -497,6 +597,7 @@ function Hud.Init()
 	buildToolbar(gui)
 	buildHitMarker(gui)
 	buildEndScreen(gui)
+	buildCountdown(gui)
 	showHint(gui)
 
 	if UserInputService.TouchEnabled and not UserInputService.MouseEnabled then
@@ -521,10 +622,10 @@ function Hud.Init()
 
 		if state == "Waiting" then
 			board.Timer.Text = "--:--"
-			board.State.Text = "WAITING FOR PLAYERS"
+			board.State.Text = "LOBBY - WAITING FOR PLAYERS"
 		elseif state == "Intermission" then
 			board.Timer.Text = UIKit.FormatTime(remaining)
-			board.State.Text = "MATCH STARTS SOON"
+			board.State.Text = "LOBBY - GET READY"
 		elseif state == "Playing" then
 			board.Timer.Text = UIKit.FormatTime(remaining)
 			if Workspace:GetAttribute("Overtime") then
@@ -538,6 +639,7 @@ function Hud.Init()
 		end
 
 		for teamName, chip in pairs(chips) do
+			chip.Visible = state ~= "Waiting" and state ~= "Intermission"
 			local flagState = Workspace:GetAttribute(teamName .. "Flag") or "Home"
 			local carrier = Workspace:GetAttribute(teamName .. "Carrier") or ""
 			if flagState == "Carried" then

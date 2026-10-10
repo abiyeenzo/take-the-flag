@@ -12,6 +12,10 @@ Cosmetics.Trails = {
 	{ Id = "shadow", Name = "Shadow", Price = 300, Color = solid(Color3.fromRGB(120, 60, 200)), Swatch = Color3.fromRGB(120, 60, 200) },
 	{ Id = "royal", Name = "Royal", Price = 400, Color = solid(Color3.fromRGB(70, 90, 255)), Swatch = Color3.fromRGB(70, 90, 255) },
 	{ Id = "gold", Name = "Gold", Price = 600, Color = solid(Color3.fromRGB(255, 210, 70)), Swatch = Color3.fromRGB(255, 210, 70) },
+	{ Id = "aurora", Name = "Aurora", Price = 0, VipOnly = true, Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(80, 255, 200)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(150, 90, 255)),
+	}), Swatch = Color3.fromRGB(80, 255, 200) },
 	{
 		Id = "rainbow",
 		Name = "Rainbow",
