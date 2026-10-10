@@ -7,6 +7,8 @@ local Services = script.Parent.Services
 pcall(function()
 	Players.RespawnTime = Config.RespawnTime
 end)
+-- Characters are loaded by SpawnService once the player presses Play on the main menu.
+Players.CharacterAutoLoads = false
 
 local MapBuilder = require(Services.MapBuilder)
 local TeamService = require(Services.TeamService)
@@ -17,6 +19,7 @@ local ClassService = require(Services.ClassService)
 local CombatService = require(Services.CombatService)
 local FlagService = require(Services.FlagService)
 local BotService = require(Services.BotService)
+local SpawnService = require(Services.SpawnService)
 local RoundService = require(Services.RoundService)
 
 local mapInfo = MapBuilder.Build()
@@ -29,5 +32,6 @@ ClassService.Init()
 CombatService.Init()
 FlagService.Init(mapInfo)
 BotService.Init()
+SpawnService.Init()
 
 RoundService.Run()

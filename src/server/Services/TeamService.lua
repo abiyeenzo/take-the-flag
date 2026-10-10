@@ -1,4 +1,3 @@
-local Players = game:GetService("Players")
 local Teams = game:GetService("Teams")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -47,11 +46,6 @@ function TeamService.Init()
 		team.TeamColor = def.BrickColor
 		team.AutoAssignable = false
 		team.Parent = Teams
-	end
-
-	Players.PlayerAdded:Connect(TeamService.Assign)
-	for _, player in ipairs(Players:GetPlayers()) do
-		TeamService.Assign(player)
 	end
 end
 

@@ -17,6 +17,7 @@ local player = Players.LocalPlayer
 
 local Hud = {}
 Hud.Buttons = {}
+Hud.Root = nil :: any
 
 local function fadeOut(instances: { Instance }, delay: number, duration: number)
 	task.delay(delay, function()
@@ -553,6 +554,7 @@ local function showHint(gui: GuiObject)
 			and "Tap to shoot  -  ability button  -  Classes and Shop buttons"
 		or "Click to shoot  -  Q ability  -  C classes  -  B shop"
 	local hint = Label({
+		Name = "Hint",
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0, 112),
 		Size = UDim2.new(1, -24, 0, 48),
@@ -568,9 +570,30 @@ local function showHint(gui: GuiObject)
 	fadeOut({ hint }, 14, 1)
 end
 
+local inMenu = false
+
+-- Hides the match pieces while the main menu is open. Toasts, the countdown
+-- and the panels stay available.
+local MENU_HIDDEN = { "Scoreboard", "Feed", "Ability", "Toolbar", "Crosshair", "Hint", "ProfileBar", "SettingsButton" }
+
+function Hud.SetInMenu(value: boolean)
+	inMenu = value
+	local root = Hud.Root
+	if not root then
+		return
+	end
+	for _, name in ipairs(MENU_HIDDEN) do
+		local item = root:FindFirstChild(name)
+		if item and item:IsA("GuiObject") then
+			item.Visible = not value
+		end
+	end
+end
+
 function Hud.Init()
 	local screenGui = New("ScreenGui", {
 		Name = "TakeTheFlagHud",
+		DisplayOrder = 10,
 		ResetOnSpawn = false,
 		IgnoreGuiInset = false,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
@@ -612,6 +635,8 @@ function Hud.Init()
 		}, { New("UICorner", { CornerRadius = UDim.new(1, 0) }) })
 	end
 
+	Hud.SetInMenu(inMenu)
+
 	RunService.Heartbeat:Connect(function()
 		local state = Workspace:GetAttribute("RoundState") or "Waiting"
 		local timerEnd = Workspace:GetAttribute("TimerEnd") or 0
@@ -639,7 +664,7 @@ function Hud.Init()
 		end
 
 		for teamName, chip in pairs(chips) do
-			chip.Visible = state ~= "Waiting" and state ~= "Intermission"
+			chip.Visible = not inMenu and state ~= "Waiting" and state ~= "Intermission"
 			local flagState = Workspace:GetAttribute(teamName .. "Flag") or "Home"
 			local carrier = Workspace:GetAttribute(teamName .. "Carrier") or ""
 			if flagState == "Carried" then

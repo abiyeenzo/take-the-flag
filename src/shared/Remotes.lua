@@ -18,6 +18,8 @@ local EVENTS = {
 	"Purchase", -- client -> server: kind ("Pass" or "Product"), key from Monetization
 	"Countdown", -- server -> clients: number (3,2,1) or "GO"
 	"Flash", -- server -> clients: white screen flash when entering the arena
+	"EnterGame", -- client -> server: the player pressed Play on the main menu
+	"LeaveToMenu", -- client -> server: the player goes back to the main menu
 }
 
 local folder

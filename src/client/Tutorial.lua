@@ -158,11 +158,11 @@ end
 
 function Tutorial.Init(gui: GuiObject)
 	local function tryStart()
-		if started or not Settings.Get("ShowTutorialHints") then
+		if started or player:GetAttribute("InGame") ~= true or not Settings.Get("ShowTutorialHints") then
 			return
 		end
 		started = true
-		task.delay(2, function()
+		task.delay(1.5, function()
 			if Settings.Get("ShowTutorialHints") and gui.Parent then
 				show(gui)
 			else
@@ -182,11 +182,15 @@ function Tutorial.Init(gui: GuiObject)
 		end
 	end)
 
-	if player.Character then
-		tryStart()
-	else
-		player.CharacterAdded:Once(tryStart)
+	local function check()
+		if player:GetAttribute("InGame") == true then
+			tryStart()
+		else
+			destroyCard()
+		end
 	end
+	player:GetAttributeChangedSignal("InGame"):Connect(check)
+	check()
 end
 
 return Tutorial

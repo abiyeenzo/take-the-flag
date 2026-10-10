@@ -2,6 +2,7 @@ local UserInputService = game:GetService("UserInputService")
 
 local Controls = require(script.Parent.Controls)
 local Hud = require(script.Parent.Hud)
+local MainMenu = require(script.Parent.MainMenu)
 local Menus = require(script.Parent.Menus)
 local Settings = require(script.Parent.Settings)
 local Store = require(script.Parent.Store)
@@ -44,6 +45,7 @@ Hud.Init()
 Settings.Init(Hud.Root)
 Menus.Init(Hud.Root, Hud.Buttons)
 Controls.Init()
+MainMenu.Init(Menus)
 Tutorial.Init(Hud.Root)
 
 if UserInputService.TouchEnabled then

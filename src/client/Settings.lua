@@ -2,6 +2,7 @@ local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
+local Remotes = require(game:GetService("ReplicatedStorage").Shared.Remotes)
 local UIKit = require(script.Parent.UIKit)
 
 local New, Label, Colors = UIKit.New, UIKit.Label, UIKit.Colors
@@ -144,7 +145,7 @@ local function buildPanel(parent: GuiObject)
 	}, {
 		UIKit.Corner(14),
 		UIKit.Stroke(Colors.Stroke, 2, 0.2),
-		New("UISizeConstraint", { MaxSize = Vector2.new(420, 120 + #OPTIONS * 68) }),
+		New("UISizeConstraint", { MaxSize = Vector2.new(420, 190 + #OPTIONS * 68) }),
 	})
 	panel = frame
 
@@ -171,7 +172,7 @@ local function buildPanel(parent: GuiObject)
 
 	local list = New("ScrollingFrame", {
 		Position = UDim2.fromOffset(14, 62),
-		Size = UDim2.new(1, -28, 1, -96),
+		Size = UDim2.new(1, -28, 1, -140),
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		ScrollBarThickness = 6,
@@ -227,6 +228,30 @@ local function buildPanel(parent: GuiObject)
 			Settings.Set(option.Key, not values[option.Key])
 		end)
 	end
+
+	local back = UIKit.Button({
+		Name = "BackToMenu",
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -34),
+		Size = UDim2.new(1, -28, 0, 44),
+		Text = "Back to main menu",
+		ZIndex = 21,
+		Parent = frame,
+	})
+	local function refreshBack()
+		local inGame = player:GetAttribute("InGame") == true
+		back.AutoButtonColor = inGame
+		back.TextTransparency = inGame and 0 or 0.55
+		back.Text = inGame and "Back to main menu" or "You are in the main menu"
+	end
+	refreshBack()
+	player:GetAttributeChangedSignal("InGame"):Connect(refreshBack)
+	back.Activated:Connect(function()
+		if player:GetAttribute("InGame") == true then
+			frame.Visible = false
+			Remotes:WaitForChild("LeaveToMenu"):FireServer()
+		end
+	end)
 
 	Label({
 		AnchorPoint = Vector2.new(0.5, 1),

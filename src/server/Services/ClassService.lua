@@ -216,7 +216,7 @@ function ClassService.Init()
 
 		if Workspace:GetAttribute("RoundState") == "Playing" then
 			Remotes.Toast:FireClient(player, def.Name .. " will be active when you respawn", "good")
-		else
+		elseif player:GetAttribute("InGame") == true then
 			task.spawn(function()
 				player:LoadCharacter()
 			end)

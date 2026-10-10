@@ -1,3 +1,4 @@
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 
@@ -598,6 +599,15 @@ function Menus.Init(gui: GuiObject, buttons: { [string]: TextButton })
 	for _, panel in pairs(panels) do
 		panel:GetPropertyChangedSignal("Visible"):Connect(syncModal)
 	end
+
+	-- entering the game closes any shop or class panel left open on the main menu
+	Players.LocalPlayer:GetAttributeChangedSignal("InGame"):Connect(function()
+		if Players.LocalPlayer:GetAttribute("InGame") == true then
+			for _, panel in pairs(panels) do
+				panel.Visible = false
+			end
+		end
+	end)
 
 	Store.Changed.Event:Connect(function()
 		for name, panel in pairs(panels) do

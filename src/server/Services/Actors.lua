@@ -33,13 +33,21 @@ function Actors.BotList(): { any }
 	return table.clone(botOrder)
 end
 
+-- Only players who pressed Play (InGame) take part in matches. Players sitting on the
+-- main menu are connected but are not counted for teams, bots, rounds or rewards.
 function Actors.Humans(): { Player }
-	return Players:GetPlayers()
+	local list = {}
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player:GetAttribute("InGame") == true then
+			table.insert(list, player)
+		end
+	end
+	return list
 end
 
 function Actors.All(): { Actor }
 	local list: { Actor } = {}
-	for _, player in ipairs(Players:GetPlayers()) do
+	for _, player in ipairs(Actors.Humans()) do
 		table.insert(list, player)
 	end
 	for _, bot in ipairs(botOrder) do
